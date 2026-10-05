@@ -175,6 +175,31 @@ const AppState = {
                     console.error('Cart fetch error:', e);
                 }
             }
+
+            // Sync / Fetch Wishlist
+            if (this.wishlist.length > 0) {
+                try {
+                    const syncWishRes = await ApiService.post('/api/wishlist/sync', { product_ids: this.wishlist });
+                    if (syncWishRes.success && syncWishRes.data && syncWishRes.data.data) {
+                        const items = syncWishRes.data.data.items || [];
+                        this.wishlist = items.map(it => it.product_id);
+                        this.saveWishlist();
+                    }
+                } catch (e) {
+                    console.error('Wishlist sync error:', e);
+                }
+            } else {
+                try {
+                    const wishRes = await ApiService.get('/api/wishlist');
+                    if (wishRes.success && wishRes.data && wishRes.data.data) {
+                        const items = wishRes.data.data.items || [];
+                        this.wishlist = items.map(it => it.product_id);
+                        this.saveWishlist();
+                    }
+                } catch (e) {
+                    console.error('Wishlist fetch error:', e);
+                }
+            }
         }
         this.renderCart();
         this.renderWishlist();
@@ -246,18 +271,42 @@ const AppState = {
         }
     },
 
-    toggleWishlist(product) {
-        const index = this.wishlist.findIndex(id => id == product.id);
-        if (index > -1) {
-            this.wishlist.splice(index, 1);
-            this.saveWishlist();
-            showToast(`Removed "${product.name}" from your wishlist.`, 'info');
-            return false;
+    async toggleWishlist(product) {
+        const isAuth = document.body && document.body.dataset.authenticated === 'true';
+        const productId = parseInt(product.id);
+
+        if (isAuth) {
+            const res = await ApiService.post('/api/wishlist/toggle', { product_id: productId });
+            if (res.success && res.data) {
+                const isInWishlist = res.data.is_in_wishlist;
+                if (isInWishlist) {
+                    if (!this.wishlist.includes(productId)) {
+                        this.wishlist.push(productId);
+                    }
+                    showToast(res.data.message || `Added "${product.name}" to your wishlist!`, 'success');
+                } else {
+                    this.wishlist = this.wishlist.filter(id => id != productId);
+                    showToast(res.data.message || `Removed "${product.name}" from your wishlist.`, 'info');
+                }
+                this.saveWishlist();
+                return isInWishlist;
+            } else {
+                showToast(res.error || 'Could not update wishlist.', 'error');
+                return false;
+            }
         } else {
-            this.wishlist.push(product.id);
-            this.saveWishlist();
-            showToast(`Added "${product.name}" to your wishlist!`, 'success');
-            return true;
+            const index = this.wishlist.findIndex(id => id == productId);
+            if (index > -1) {
+                this.wishlist.splice(index, 1);
+                this.saveWishlist();
+                showToast(`Removed "${product.name}" from your wishlist.`, 'info');
+                return false;
+            } else {
+                this.wishlist.push(productId);
+                this.saveWishlist();
+                showToast(`Added "${product.name}" to your wishlist!`, 'success');
+                return true;
+            }
         }
     },
 
@@ -586,33 +635,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5.6 Wishlist Buttons
     function bindWishlistButtons() {
         document.querySelectorAll('.wishlist-toggle-btn').forEach(btn => {
-            btn.onclick = (e) => {
+            btn.onclick = async (e) => {
                 e.stopPropagation();
                 const id = btn.getAttribute('data-id');
                 const name = btn.getAttribute('data-name');
-                AppState.toggleWishlist({ id, name });
+                const added = await AppState.toggleWishlist({ id, name });
+                btn.classList.toggle('active', added);
+                const heart = btn.querySelector('.heart-icon');
+                if (heart) heart.textContent = added ? '❤️' : '🤍';
             };
         });
     }
     bindWishlistButtons();
-
-    // Wishlist top button click
-    const navWishlistBtn = document.getElementById('nav-wishlist-btn');
-    if (navWishlistBtn) {
-        navWishlistBtn.addEventListener('click', () => {
-            if (AppState.wishlist.length === 0) {
-                showToast('Your wishlist is empty. Tap any ❤️ to save favorites!', 'info');
-            } else {
-                openGeneralModal(
-                    'My Wishlist',
-                    `<p>You have <strong>${AppState.wishlist.length} item(s)</strong> saved in your favorites list.</p>
-                     <p style="margin-top: 0.5rem; color: #4f46e5; font-weight: 600;">
-                        Full dedicated Wishlist management will be expanded in <strong>Module 6</strong>.
-                     </p>`
-                );
-            }
-        });
-    }
 
     // 5.7 Category Filtering Logic
     let activeCategory = '';

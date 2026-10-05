@@ -100,6 +100,8 @@ projects/
 │   │   └── detail.html        # Product detail showcase & related recommendations
 │   ├── cart/                  # Shopping cart templates (Module 5)
 │   │   └── index.html         # Customer shopping cart & checkout review page
+│   ├── wishlist/              # Wishlist templates (Module 6)
+│   │   └── index.html         # Customer saved favorites & wishlist page
 │   └── errors/                # User-friendly error pages
 │       ├── 404.html           # 404 Not Found template
 │       └── 500.html           # 500 Internal Server Error template
@@ -330,16 +332,54 @@ Module 5 provides a synchronized shopping cart experience with inventory validat
 
 ---
 
-## 10. Development Roadmap (Modules 0 – 12)
+## 10. Wishlist System (Module 6)
+
+Module 6 provides a dedicated saved favorites experience with real-time UI synchronization, guest persistence, bulk cart transfer, and social sharing:
+
+### Key Features:
+- **Dedicated Wishlist Page (`/wishlist`)**: Clean, responsive layout showcasing saved favorites with inventory indicators, price values, and product ratings.
+- **Wishlist Toolbar**:
+  - Live item count badge (`<strong id="wishlist-total-count">X</strong> item(s) saved`).
+  - **Move All to Bag**: Bulk-transfers all available in-stock items directly to the shopping cart.
+  - **Share Wishlist**: One-click clipboard copy of the wishlist URL with toast confirmation.
+  - **Clear Wishlist**: Empty all wishlist items with confirmation alert.
+- **Interactive Product Cards**:
+  - Floating remove button (`✕`) for instant deletion.
+  - Product media linking to full detail showcase (`/products/<id>`).
+  - Real-time stock status badge (`✓ In Stock`, `⚠️ Only X left`, `✕ Out of Stock`).
+  - Individual **Move to Bag** CTA with automatic stock checks.
+- **Global Navigation Integration**:
+  - Navbar wishlist trigger (`#nav-wishlist-btn`) displaying dynamic item count badge.
+  - Mobile drawer wishlist link (`.mobile-wishlist-count`).
+  - User account dropdown menu integration.
+  - Instant heart icon synchronization across all product cards and product detail showcase.
+- **Guest-to-Authenticated Synchronization**:
+  - Client-side storage via `localStorage['shopease_wishlist']`.
+  - Automatic database synchronization upon login (`POST /api/wishlist/sync`).
+  - On-demand guest hydration with product metadata (`GET /api/wishlist?product_ids=...`).
+- **RESTful Wishlist API Endpoints**:
+  - `GET /api/wishlist` — Retrieve wishlist items for user or hydrated guest items
+  - `POST /api/wishlist/items` — Add product to wishlist
+  - `POST /api/wishlist/toggle` — Toggle item in/out of wishlist
+  - `DELETE /api/wishlist/items/<id>` — Remove product from wishlist
+  - `DELETE /api/wishlist` — Clear all items from user's wishlist
+  - `POST /api/wishlist/items/<id>/move-to-cart` — Move specific item to cart
+  - `POST /api/wishlist/move-all-to-cart` — Bulk transfer all in-stock items to cart
+  - `POST /api/wishlist/sync` — Merge guest product IDs into user account
+  - `GET /api/wishlist/status` — Health check endpoint for wishlist subsystem
+
+---
+
+## 11. Development Roadmap (Modules 0 – 12)
 
 - **[x] MODULE 0: Project Foundation & Architecture**
 - **[x] MODULE 1: UI Foundation & Home Page**
 - **[x] MODULE 2: Authentication (Register, Login, Logout, Sessions)**
 - **[x] MODULE 3: Product Management (Admin CRUD & Categories)**
 - **[x] MODULE 4: Product Browsing, Search & Filtering**
-- **[x] MODULE 5: Shopping Cart System** *(Completed)*
-- **[ ] MODULE 6: Wishlist** *(Next)*
-- **[ ] MODULE 7: Checkout & Order Management**
+- **[x] MODULE 5: Shopping Cart System**
+- **[x] MODULE 6: Wishlist System** *(Completed)*
+- **[ ] MODULE 7: Checkout & Order Management** *(Next)*
 - **[ ] MODULE 8: User Profile & Order History**
 - **[ ] MODULE 9: Admin Dashboard (Analytics & Fulfillment)**
 - **[ ] MODULE 10: Database & API Integration Review**

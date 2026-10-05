@@ -1192,8 +1192,235 @@ class Module5ShoppingCartTestCase(unittest.TestCase):
         self.assertEqual(summary["subtotal"], expected_subtotal)
 
 
+class Module6WishlistTestCase(unittest.TestCase):
+    """Test suite validating Module 6 Wishlist System requirements."""
+
+    def setUp(self):
+        """Set up test client, in-memory SQLite database, and seed data."""
+        self.app = create_app("testing")
+        self.client = self.app.test_client()
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+        # Seed categories
+        self.cat = Category(name="Fashion", description="Apparel & Accessories")
+        db.session.add(self.cat)
+        db.session.flush()
+
+        # Seed products
+        self.prod1 = Product(
+            name="Classic Denim Jacket",
+            description="Timeless vintage jacket",
+            price=89.99,
+            stock=15,
+            category_id=self.cat.id,
+            image="🧥",
+            is_active=True
+        )
+        self.prod2 = Product(
+            name="Leather Chelsea Boots",
+            description="Premium handmade leather",
+            price=149.99,
+            stock=8,
+            category_id=self.cat.id,
+            image="🥾",
+            is_active=True
+        )
+        self.prod_oos = Product(
+            name="Limited Edition Silk Scarf",
+            description="Sold out luxury silk",
+            price=65.00,
+            stock=0,
+            category_id=self.cat.id,
+            image="🧣",
+            is_active=True
+        )
+        self.prod_inactive = Product(
+            name="Archived Item",
+            description="No longer sold",
+            price=45.00,
+            stock=10,
+            category_id=self.cat.id,
+            image="📦",
+            is_active=False
+        )
+
+        # Seed test user
+        self.user = User(
+            name="Wishlist Enthusiast",
+            email="wishlistuser@example.com",
+            role=User.ROLE_USER
+        )
+        self.user.set_password("Secret123!")
+
+        db.session.add_all([self.prod1, self.prod2, self.prod_oos, self.prod_inactive, self.user])
+        db.session.commit()
+
+    def tearDown(self):
+        """Clean up database session and drop all tables."""
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    def _login(self):
+        """Establish authenticated session for self.user."""
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = self.user.id
+            sess["user_name"] = self.user.name
+            sess["user_email"] = self.user.email
+            sess["user_role"] = self.user.role
+
+    def test_wishlist_status_endpoint(self):
+        """Verify GET /api/wishlist/status returns 200 and operational health message."""
+        res = self.client.get("/api/wishlist/status")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertIn("Module 6 Active", data.get("message"))
+
+    def test_wishlist_html_page_renders_successfully(self):
+        """Verify GET /wishlist returns 200 with complete wishlist view and toolbar."""
+        res = self.client.get("/wishlist")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"My Saved Favorites", res.data)
+        self.assertIn(b"Move All to Bag", res.data)
+        self.assertIn(b"Share Wishlist", res.data)
+
+    def test_api_wishlist_empty_state(self):
+        """Verify GET /api/wishlist returns empty array and 0 count."""
+        res = self.client.get("/api/wishlist")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data["data"]["items_count"], 0)
+        self.assertEqual(data["data"]["items"], [])
+
+    def test_add_to_wishlist_authenticated(self):
+        """Verify authenticated user can add product to wishlist."""
+        self._login()
+        res = self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data["wishlist"]["items_count"], 1)
+
+        # Query back
+        res_get = self.client.get("/api/wishlist")
+        self.assertEqual(res_get.status_code, 200)
+        items = res_get.get_json()["data"]["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["product_id"], self.prod1.id)
+        self.assertEqual(items[0]["name"], self.prod1.name)
+
+    def test_add_to_wishlist_duplicate_guard(self):
+        """Verify adding an existing item does not duplicate rows."""
+        self._login()
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        res2 = self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        self.assertEqual(res2.status_code, 200)
+        self.assertIn("already in your wishlist", res2.get_json()["message"])
+
+        res_get = self.client.get("/api/wishlist")
+        self.assertEqual(res_get.get_json()["data"]["items_count"], 1)
+
+    def test_add_to_wishlist_invalid_or_inactive(self):
+        """Verify adding inactive or nonexistent product returns 404."""
+        self._login()
+        # Nonexistent
+        res_non = self.client.post("/api/wishlist/items", json={"product_id": 99999})
+        self.assertEqual(res_non.status_code, 404)
+
+        # Inactive
+        res_inact = self.client.post("/api/wishlist/items", json={"product_id": self.prod_inactive.id})
+        self.assertEqual(res_inact.status_code, 404)
+
+    def test_toggle_wishlist_lifecycle(self):
+        """Verify toggling adds item when absent and removes when present."""
+        self._login()
+
+        # 1. Toggle ON
+        res1 = self.client.post("/api/wishlist/toggle", json={"product_id": self.prod2.id})
+        self.assertEqual(res1.status_code, 200)
+        data1 = res1.get_json()
+        self.assertTrue(data1["is_in_wishlist"])
+        self.assertEqual(data1["wishlist"]["items_count"], 1)
+
+        # 2. Toggle OFF
+        res2 = self.client.post("/api/wishlist/toggle", json={"product_id": self.prod2.id})
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.get_json()
+        self.assertFalse(data2["is_in_wishlist"])
+        self.assertEqual(data2["wishlist"]["items_count"], 0)
+
+    def test_remove_from_wishlist(self):
+        """Verify DELETE /api/wishlist/items/<id> removes item."""
+        self._login()
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        res_del = self.client.delete(f"/api/wishlist/items/{self.prod1.id}")
+        self.assertEqual(res_del.status_code, 200)
+        self.assertEqual(res_del.get_json()["wishlist"]["items_count"], 0)
+
+    def test_clear_wishlist(self):
+        """Verify DELETE /api/wishlist clears all items."""
+        self._login()
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod2.id})
+
+        res_clear = self.client.delete("/api/wishlist")
+        self.assertEqual(res_clear.status_code, 200)
+        self.assertEqual(res_clear.get_json()["wishlist"]["items_count"], 0)
+
+    def test_move_item_to_cart(self):
+        """Verify POST /api/wishlist/items/<id>/move-to-cart transfers product from wishlist to cart."""
+        self._login()
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+
+        res_move = self.client.post(f"/api/wishlist/items/{self.prod1.id}/move-to-cart")
+        self.assertEqual(res_move.status_code, 200)
+        data = res_move.get_json()
+        self.assertEqual(data["wishlist"]["items_count"], 0)
+        self.assertEqual(data["cart"]["items_count"], 1)
+        self.assertEqual(data["cart"]["items"][0]["product"]["id"], self.prod1.id)
+
+    def test_move_all_items_to_cart(self):
+        """Verify POST /api/wishlist/move-all-to-cart transfers in-stock items and skips out-of-stock items."""
+        self._login()
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod1.id})
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod2.id})
+        self.client.post("/api/wishlist/items", json={"product_id": self.prod_oos.id})
+
+        res_move_all = self.client.post("/api/wishlist/move-all-to-cart")
+        self.assertEqual(res_move_all.status_code, 200)
+        data = res_move_all.get_json()
+        self.assertEqual(data["data"]["moved_count"], 2)
+        self.assertEqual(data["data"]["skipped_count"], 1)
+        self.assertEqual(data["cart"]["items_count"], 2)
+        # Out-of-stock item remains in wishlist
+        self.assertEqual(data["wishlist"]["items_count"], 1)
+
+    def test_guest_wishlist_sync_upon_login(self):
+        """Verify POST /api/wishlist/sync merges guest product IDs into user wishlist."""
+        self._login()
+        payload = {"product_ids": [self.prod1.id, self.prod2.id]}
+        res_sync = self.client.post("/api/wishlist/sync", json=payload)
+        self.assertEqual(res_sync.status_code, 200)
+        data = res_sync.get_json()["data"]
+        self.assertEqual(data["items_count"], 2)
+
+    def test_guest_wishlist_hydration(self):
+        """Verify GET /api/wishlist?product_ids=... hydrates product details for guests."""
+        res = self.client.get(f"/api/wishlist?product_ids={self.prod1.id},{self.prod2.id}")
+        self.assertEqual(res.status_code, 200)
+        items = res.get_json()["data"]["items"]
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["name"], self.prod1.name)
+        self.assertEqual(items[1]["name"], self.prod2.name)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

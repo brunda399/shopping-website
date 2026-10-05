@@ -74,6 +74,19 @@ def cart_page():
     return render_template("cart/index.html", cart=summary, cart_items=summary["items"])
 
 
+@main_bp.route("/wishlist", methods=["GET"])
+def wishlist_page():
+    """Customer wishlist / saved favorites page."""
+    from flask import session
+    from services.wishlist_service import WishlistService
+    user_id = session.get("user_id")
+    if user_id:
+        wishlist_data = WishlistService.get_user_wishlist(user_id)
+    else:
+        wishlist_data = {"items_count": 0, "items": []}
+    return render_template("wishlist/index.html", wishlist=wishlist_data, wishlist_items=wishlist_data["items"])
+
+
 @main_bp.route("/register", methods=["GET", "POST"])
 def register():
     """Render and handle customer account registration."""

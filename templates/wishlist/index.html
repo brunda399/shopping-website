@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}My Wishlist &amp; Saved Favorites — ShopEase{% endblock %}
+
+{% block content %}
+<div class="wishlist-page-wrapper">
+    <!-- Breadcrumb & Header Hero -->
+    <div class="catalog-hero-strip">
+        <div class="container catalog-hero-container">
+            <div class="catalog-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active">My Wishlist</span>
+            </div>
+            <div class="catalog-hero-text">
+                <h1 class="catalog-title">My Saved Favorites</h1>
+                <p class="catalog-subtitle">Keep track of products you love, check current inventory, and move them to your bag anytime.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container wishlist-container">
+        <!-- Wishlist Actions Toolbar -->
+        <div class="wishlist-toolbar-card" id="wishlist-toolbar">
+            <div class="toolbar-left">
+                <div class="wishlist-count-pill">
+                    <span class="heart-icon">❤️</span>
+                    <span id="wishlist-count-label">
+                        <strong id="wishlist-total-count">{{ wishlist.items_count }}</strong> item(s) saved
+                    </span>
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-wishlist-share" title="Share your wishlist">
+                    <span>🔗</span> Share Wishlist
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-wishlist-move-all">
+                    <span>🛒</span> Move All to Bag
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm text-danger" id="btn-wishlist-clear">
+                    <span>🗑️</span> Clear Wishlist
+                </button>
+            </div>
+        </div>
+
+        <!-- Empty Wishlist State -->
+        <div class="wishlist-empty-card {{ 'hidden' if wishlist_items else '' }}" id="wishlist-empty-state">
+            <div class="empty-icon-wrap">🤍</div>
+            <h2>Your Wishlist is Empty</h2>
+            <p>You haven't saved any items yet. Explore our curated catalog and tap the heart icon on any product to save it here for later!</p>
+            <div class="empty-actions">
+                <a href="{{ url_for('main.products') }}" class="btn btn-primary">
+                    <span>⚡</span> Explore Products
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+
+        <!-- Populated Wishlist Grid -->
+        <div class="wishlist-grid-wrapper {{ 'hidden' if not wishlist_items else '' }}" id="wishlist-grid-wrapper">
+            <div class="wishlist-product-grid" id="wishlist-cards-grid">
+                {% for item in wishlist_items %}
+                <div class="wishlist-product-card" data-id="{{ item.product_id }}">
+                    <!-- Remove Button -->
+                    <button type="button" class="btn-remove-wishlist" data-id="{{ item.product_id }}" title="Remove from wishlist" aria-label="Remove item">
+                        ✕
+                    </button>
+
+                    <!-- Product Image -->
+                    <a href="{{ url_for('main.product_detail', product_id=item.product_id) }}" class="wishlist-card-media">
+                        {% if item.image and item.image.startswith('/static/') %}
+                            <img src="{{ item.image }}" alt="{{ item.name }}" loading="lazy">
+                        {% else %}
+                            <span class="card-emoji">{{ item.image or '📦' }}</span>
+                        {% endif %}
+                    </a>
+
+                    <!-- Card Body -->
+                    <div class="wishlist-card-body">
+                        <div class="wishlist-card-header">
+                            <span class="card-category">{{ item.category_name or 'General' }}</span>
+                            <div class="card-rating">
+                                <span class="star-icon">⭐</span>
+                                <span class="rating-num">{{ item.rating or '5.0' }}</span>
+                            </div>
+                        </div>
+
+                        <h3 class="wishlist-card-title">
+                            <a href="{{ url_for('main.product_detail', product_id=item.product_id) }}">{{ item.name }}</a>
+                        </h3>
+
+                        <!-- Stock Status -->
+                        <div class="wishlist-stock-status">
+                            {% if item.stock <= 0 %}
+                                <span class="badge badge-stock out-of-stock">✕ Out of Stock</span>
+                            {% elif item.stock <= 5 %}
+                                <span class="badge badge-stock low-stock">⚠️ Only {{ item.stock }} left</span>
+                            {% else %}
+                                <span class="badge badge-stock in-stock">✓ In Stock ({{ item.stock }})</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Price & Action -->
+                        <div class="wishlist-card-footer">
+                            <div class="price-box">
+                                <span class="price-val">${{ "%.2f"|format(item.price) }}</span>
+                            </div>
+
+                            {% if item.stock > 0 %}
+                            <button 
+                                type="button" 
+                                class="btn btn-primary btn-sm btn-wishlist-move-cart" 
+                                data-id="{{ item.product_id }}"
+                                data-name="{{ item.name }}"
+                                data-price="{{ item.price }}"
+                                data-image="{{ item.image }}"
+                                data-category="{{ item.category_name }}"
+                            >
+                                <span>🛒</span> Move to Bag
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                Out of Stock
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- Client-Side Wishlist Controller Script                                  -->
+<!-- ======================================================================= -->
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const isAuth = document.body && document.body.dataset.authenticated === 'true';
+    const gridEl = document.getElementById('wishlist-cards-grid');
+    const emptyState = document.getElementById('wishlist-empty-state');
+    const gridWrapper = document.getElementById('wishlist-grid-wrapper');
+    const totalCountEl = document.getElementById('wishlist-total-count');
+
+    // 1. If guest user, hydrate wishlist from localStorage
+    if (!isAuth) {
+        const guestIds = JSON.parse(localStorage.getItem('shopease_wishlist') || '[]');
+        if (guestIds.length > 0) {
+            try {
+                const res = await ApiService.get(`/api/wishlist?product_ids=${guestIds.join(',')}`);
+                if (res.success && res.data && res.data.items) {
+                    renderWishlistCards(res.data.items);
+                }
+            } catch (err) {
+                console.error('Guest wishlist hydration error:', err);
+            }
+        } else {
+            renderEmptyWishlist();
+        }
+    } else {
+        // Authenticated user: update count and bind listeners
+        bindCardListeners();
+    }
+
+    // 2. Render cards dynamically for guest
+    function renderWishlistCards(items) {
+        if (!items || items.length === 0) {
+            renderEmptyWishlist();
+            return;
+        }
+
+        if (totalCountEl) totalCountEl.textContent = items.length;
+        if (emptyState) emptyState.classList.add('hidden');
+        if (gridWrapper) gridWrapper.classList.remove('hidden');
+
+        gridEl.innerHTML = items.map(item => `
+            <div class="wishlist-product-card" data-id="${item.product_id}">
+                <button type="button" class="btn-remove-wishlist" data-id="${item.product_id}" title="Remove from wishlist" aria-label="Remove item">
+                    ✕
+                </button>
+                <a href="/products/${item.product_id}" class="wishlist-card-media">
+                    ${item.image && item.image.startsWith('/static/') 
+                        ? `<img src="${item.image}" alt="${item.name}" loading="lazy">` 
+                        : `<span class="card-emoji">${item.image || '📦'}</span>`
+                    }
+                </a>
+                <div class="wishlist-card-body">
+                    <div class="wishlist-card-header">
+                        <span class="card-category">${item.category_name || 'General'}</span>
+                        <div class="card-rating">
+                            <span class="star-icon">⭐</span>
+                            <span class="rating-num">${item.rating || '5.0'}</span>
+                        </div>
+                    </div>
+                    <h3 class="wishlist-card-title">
+                        <a href="/products/${item.product_id}">${item.name}</a>
+                    </h3>
+                    <div class="wishlist-stock-status">
+                        ${item.stock <= 0 
+                            ? `<span class="badge badge-stock out-of-stock">✕ Out of Stock</span>`
+                            : item.stock <= 5 
+                                ? `<span class="badge badge-stock low-stock">⚠️ Only ${item.stock} left</span>`
+                                : `<span class="badge badge-stock in-stock">✓ In Stock (${item.stock})</span>`
+                        }
+                    </div>
+                    <div class="wishlist-card-footer">
+                        <div class="price-box">
+                            <span class="price-val">$${parseFloat(item.price).toFixed(2)}</span>
+                        </div>
+                        ${item.stock > 0 
+                            ? `<button type="button" class="btn btn-primary btn-sm btn-wishlist-move-cart" 
+                                data-id="${item.product_id}" data-name="${item.name}" data-price="${item.price}" 
+                                data-image="${item.image}" data-category="${item.category_name}">
+                                <span>🛒</span> Move to Bag
+                               </button>`
+                            : `<button type="button" class="btn btn-secondary btn-sm" disabled>Out of Stock</button>`
+                        }
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        bindCardListeners();
+    }
+
+    function renderEmptyWishlist() {
+        if (totalCountEl) totalCountEl.textContent = '0';
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (gridWrapper) gridWrapper.classList.add('hidden');
+    }
+
+    // 3. Bind Actions
+    function bindCardListeners() {
+        // Remove item buttons
+        document.querySelectorAll('.btn-remove-wishlist').forEach(btn => {
+            btn.onclick = async () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                if (isAuth) {
+                    const res = await ApiService.delete(`/api/wishlist/items/${id}`);
+                    if (res.success) {
+                        showToast('Removed item from your wishlist.', 'info');
+                        const card = btn.closest('.wishlist-product-card');
+                        if (card) card.remove();
+                        const remaining = document.querySelectorAll('.wishlist-product-card').length;
+                        if (totalCountEl) totalCountEl.textContent = remaining;
+                        if (remaining === 0) renderEmptyWishlist();
+                        if (window.AppState) AppState.renderWishlist();
+                    } else {
+                        showToast(res.error || 'Could not remove item.', 'error');
+                    }
+                } else {
+                    let localWishlist = JSON.parse(localStorage.getItem('shopease_wishlist') || '[]');
+                    localWishlist = localWishlist.filter(x => x != id);
+                    localStorage.setItem('shopease_wishlist', JSON.stringify(localWishlist));
+                    if (window.AppState) {
+                        AppState.wishlist = localWishlist;
+                        AppState.renderWishlist();
+                    }
+                    showToast('Removed item from your wishlist.', 'info');
+                    const card = btn.closest('.wishlist-product-card');
+                    if (card) card.remove();
+                    const remaining = document.querySelectorAll('.wishlist-product-card').length;
+                    if (totalCountEl) totalCountEl.textContent = remaining;
+                    if (remaining === 0) renderEmptyWishlist();
+                }
+            };
+        });
+
+        // Move to Bag buttons
+        document.querySelectorAll('.btn-wishlist-move-cart').forEach(btn => {
+            btn.onclick = async () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                const name = btn.getAttribute('data-name');
+                const price = parseFloat(btn.getAttribute('data-price')) || 0;
+                const image = btn.getAttribute('data-image');
+                const category = btn.getAttribute('data-category');
+
+                if (isAuth) {
+                    const res = await ApiService.post(`/api/wishlist/items/${id}/move-to-cart`);
+                    if (res.success) {
+                        showToast(`Moved "${name}" to your shopping bag!`, 'success');
+                        const card = btn.closest('.wishlist-product-card');
+                        if (card) card.remove();
+                        const remaining = document.querySelectorAll('.wishlist-product-card').length;
+                        if (totalCountEl) totalCountEl.textContent = remaining;
+                        if (remaining === 0) renderEmptyWishlist();
+                        if (window.AppState) {
+                            await AppState.init();
+                            openCartDrawer();
+                        }
+                    } else {
+                        showToast(res.error || 'Could not move item to cart.', 'error');
+                    }
+                } else {
+                    // Guest move to bag
+                    if (window.AppState) {
+                        const added = await AppState.addToCart({ id, name, price, image, category, quantity: 1 });
+                        if (added) {
+                            let localWishlist = JSON.parse(localStorage.getItem('shopease_wishlist') || '[]');
+                            localWishlist = localWishlist.filter(x => x != id);
+                            localStorage.setItem('shopease_wishlist', JSON.stringify(localWishlist));
+                            AppState.wishlist = localWishlist;
+                            AppState.renderWishlist();
+                            const card = btn.closest('.wishlist-product-card');
+                            if (card) card.remove();
+                            const remaining = document.querySelectorAll('.wishlist-product-card').length;
+                            if (totalCountEl) totalCountEl.textContent = remaining;
+                            if (remaining === 0) renderEmptyWishlist();
+                        }
+                    }
+                }
+            };
+        });
+    }
+
+    // 4. Toolbar: Move All to Bag
+    const btnMoveAll = document.getElementById('btn-wishlist-move-all');
+    if (btnMoveAll) {
+        btnMoveAll.addEventListener('click', async () => {
+            const cards = document.querySelectorAll('.wishlist-product-card');
+            if (cards.length === 0) {
+                showToast('Your wishlist is empty!', 'warning');
+                return;
+            }
+
+            if (isAuth) {
+                const res = await ApiService.post('/api/wishlist/move-all-to-cart');
+                if (res.success) {
+                    showToast(res.message || 'Moved items to your shopping bag!', 'success');
+                    if (window.AppState) await AppState.init();
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    showToast(res.error || 'Could not transfer items.', 'error');
+                }
+            } else {
+                // Guest: iterate all buttons with .btn-wishlist-move-cart
+                const moveBtns = document.querySelectorAll('.btn-wishlist-move-cart');
+                let count = 0;
+                for (const b of moveBtns) {
+                    const id = parseInt(b.getAttribute('data-id'));
+                    const name = b.getAttribute('data-name');
+                    const price = parseFloat(b.getAttribute('data-price')) || 0;
+                    const image = b.getAttribute('data-image');
+                    const category = b.getAttribute('data-category');
+                    await AppState.addToCart({ id, name, price, image, category, quantity: 1 });
+                    count++;
+                }
+                localStorage.setItem('shopease_wishlist', '[]');
+                AppState.wishlist = [];
+                AppState.renderWishlist();
+                showToast(`Moved ${count} item(s) to your shopping bag!`, 'success');
+                setTimeout(() => window.location.reload(), 500);
+            }
+        });
+    }
+
+    // 5. Toolbar: Clear Wishlist
+    const btnClearWishlist = document.getElementById('btn-wishlist-clear');
+    if (btnClearWishlist) {
+        btnClearWishlist.addEventListener('click', async () => {
+            const cards = document.querySelectorAll('.wishlist-product-card');
+            if (cards.length === 0) {
+                showToast('Your wishlist is already empty.', 'info');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to clear your entire wishlist?')) return;
+
+            if (isAuth) {
+                const res = await ApiService.delete('/api/wishlist');
+                if (res.success) {
+                    showToast('Your wishlist has been cleared.', 'info');
+                    renderEmptyWishlist();
+                    if (window.AppState) AppState.renderWishlist();
+                } else {
+                    showToast(res.error || 'Could not clear wishlist.', 'error');
+                }
+            } else {
+                localStorage.setItem('shopease_wishlist', '[]');
+                if (window.AppState) {
+                    AppState.wishlist = [];
+                    AppState.renderWishlist();
+                }
+                showToast('Your wishlist has been cleared.', 'info');
+                renderEmptyWishlist();
+            }
+        });
+    }
+
+    // 6. Toolbar: Share Wishlist
+    const btnShare = document.getElementById('btn-wishlist-share');
+    if (btnShare) {
+        btnShare.addEventListener('click', async () => {
+            const shareUrl = window.location.href;
+            if (navigator.clipboard) {
+                try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    showToast('Wishlist link copied to clipboard! 📋', 'success');
+                } catch (e) {
+                    prompt('Copy your wishlist link:', shareUrl);
+                }
+            } else {
+                prompt('Copy your wishlist link:', shareUrl);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

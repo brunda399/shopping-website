@@ -105,11 +105,11 @@
                 <!-- Right Action Utilities -->
                 <div class="nav-actions">
                     <!-- Wishlist Trigger -->
-                    <button class="action-btn" id="nav-wishlist-btn" title="View Wishlist" aria-label="Wishlist">
+                    <a href="{{ url_for('main.wishlist_page') }}" class="action-btn" id="nav-wishlist-btn" title="View Wishlist" aria-label="Wishlist">
                         <span class="action-icon">🤍</span>
                         <span class="badge" id="wishlist-badge">0</span>
                         <span class="action-label">Wishlist</span>
-                    </button>
+                    </a>
 
                     <!-- Cart Trigger (Opens Cart Slide-out Drawer) -->
                     <button class="action-btn action-cart-btn" id="nav-cart-btn" title="View Cart Drawer" aria-label="Shopping Cart">
@@ -153,6 +153,11 @@
                                 <li>
                                     <a href="javascript:void(0)" class="dropdown-item" onclick="openCartDrawer();">
                                         <span>🛒</span> Shopping Bag
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('main.wishlist_page') }}" class="dropdown-item">
+                                        <span>🤍</span> My Wishlist
                                     </a>
                                 </li>
                                 <li class="dropdown-divider"></li>
@@ -266,7 +271,7 @@
                     <li><a href="{{ url_for('admin.products_dashboard') }}" class="mobile-nav-link">🛡️ Admin Dashboard</a></li>
                     {% endif %}
                     <li><a href="#order-tracking" class="mobile-nav-link">📦 Track My Order</a></li>
-                    <li><a href="#wishlist" class="mobile-nav-link" id="mobile-wishlist-link">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
+                    <li><a href="{{ url_for('main.wishlist_page') }}" class="mobile-nav-link" id="mobile-wishlist-link">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
                     <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-cart-link" onclick="closeMobileDrawer(); openCartDrawer();">🛒 Shopping Bag (<span class="mobile-cart-count">0</span>)</a></li>
                     <li class="mobile-divider"></li>
                     <li><a href="{{ url_for('main.logout') }}" class="mobile-nav-link text-danger">🚪 Sign Out</a></li>
@@ -274,7 +279,7 @@
                     <li><a href="{{ url_for('main.login') }}" class="mobile-nav-link" id="mobile-signin-link">👤 Sign In</a></li>
                     <li><a href="{{ url_for('main.register') }}" class="mobile-nav-link" id="mobile-signup-link">✨ Create Free Account</a></li>
                     <li><a href="#order-tracking" class="mobile-nav-link">📦 Track My Order</a></li>
-                    <li><a href="#wishlist" class="mobile-nav-link" id="mobile-wishlist-link">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
+                    <li><a href="{{ url_for('main.wishlist_page') }}" class="mobile-nav-link" id="mobile-wishlist-link-guest">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
                     <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-cart-link" onclick="closeMobileDrawer(); openCartDrawer();">🛒 Shopping Bag (<span class="mobile-cart-count">0</span>)</a></li>
                     {% endif %}
                 </ul>
