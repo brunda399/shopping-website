@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}ShopEase — Discover Quality, Enjoy Effortless Shopping{% endblock %}
+
+{% block content %}
+<!-- 1. Hero Section -->
+<section class="hero-section" id="hero-section">
+    <div class="container hero-container">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-sparkle">✨</span>
+                <span>New Season Arrivals • Exclusive 2026 Collection</span>
+            </div>
+            <h1 class="hero-title">
+                Smart, Reliable &amp; Effortless <span class="gradient-text">Online Shopping</span>
+            </h1>
+            <p class="hero-subtitle">
+                Explore thousands of handpicked lifestyle essentials, cutting-edge electronics, and premium fashion with lightning-fast delivery and bank-grade security.
+            </p>
+            <div class="hero-actions">
+                <a href="#products-section" class="btn btn-primary btn-lg" id="hero-shop-btn">
+                    <span>Shop Featured Deals</span>
+                    <span class="btn-arrow">→</span>
+                </a>
+                <a href="#categories-section" class="btn btn-secondary btn-lg" id="hero-categories-btn">
+                    <span>Browse Categories</span>
+                </a>
+            </div>
+
+            <!-- Trust Bar Highlights -->
+            <div class="hero-trust-bar">
+                <div class="trust-item">
+                    <span class="trust-icon">🚀</span>
+                    <div class="trust-text">
+                        <strong>Free Express Delivery</strong>
+                        <span>On all orders over $49</span>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-icon">🛡️</span>
+                    <div class="trust-text">
+                        <strong>100% Genuine</strong>
+                        <span>Verified authentic goods</span>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-icon">🔄</span>
+                    <div class="trust-text">
+                        <strong>30-Day Returns</strong>
+                        <span>Instant refund guarantee</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero Visual Showcase Card -->
+        <div class="hero-visual">
+            <div class="hero-card-featured">
+                <div class="card-floating-badge hot-badge">
+                    <span>🔥 Deal of the Week</span>
+                </div>
+                <div class="hero-product-preview">
+                    <span class="preview-emoji">🎧</span>
+                    <div class="preview-backdrop-circle"></div>
+                </div>
+                <div class="hero-product-details">
+                    <span class="preview-category">Electronics</span>
+                    <h3 class="preview-title">Noise-Cancelling Wireless Headphones Pro</h3>
+                    <div class="preview-rating">
+                        <span class="stars">★★★★★</span>
+                        <span class="rating-text">4.9 (248 reviews)</span>
+                    </div>
+                    <div class="preview-price-row">
+                        <div class="price-group">
+                            <span class="current-price">$129.99</span>
+                            <span class="old-price">$199.99</span>
+                            <span class="discount-pill">Save 35%</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm hero-quick-add" data-id="1" data-name="Noise-Cancelling Wireless Headphones Pro" data-price="129.99" data-image="🎧" data-category="Electronics">
+                            <span>+ Add to Cart</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. Benefits / Trust Pillars Section -->
+<section class="section benefits-section" id="benefits-section">
+    <div class="container">
+        <div class="benefits-grid">
+            <div class="benefit-card">
+                <div class="benefit-icon-wrapper">
+                    <span class="benefit-icon">🚚</span>
+                </div>
+                <div class="benefit-content">
+                    <h3 class="benefit-title">Fast &amp; Free Delivery</h3>
+                    <p class="benefit-desc">Free express shipping on all orders over $49 with real-time GPS tracking.</p>
+                </div>
+            </div>
+
+            <div class="benefit-card">
+                <div class="benefit-icon-wrapper">
+                    <span class="benefit-icon">🔒</span>
+                </div>
+                <div class="benefit-content">
+                    <h3 class="benefit-title">Bank-Grade Security</h3>
+                    <p class="benefit-desc">End-to-end 256-bit encrypted checkout keeping all your payments 100% safe.</p>
+                </div>
+            </div>
+
+            <div class="benefit-card">
+                <div class="benefit-icon-wrapper">
+                    <span class="benefit-icon">🔄</span>
+                </div>
+                <div class="benefit-content">
+                    <h3 class="benefit-title">30-Day Easy Returns</h3>
+                    <p class="benefit-desc">Not completely satisfied? Return any item within 30 days for an instant refund.</p>
+                </div>
+            </div>
+
+            <div class="benefit-card">
+                <div class="benefit-icon-wrapper">
+                    <span class="benefit-icon">🎧</span>
+                </div>
+                <div class="benefit-content">
+                    <h3 class="benefit-title">24/7 Dedicated Support</h3>
+                    <p class="benefit-desc">Our expert customer service team is ready to assist you day and night.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. Visual Categories Section -->
+<section class="section categories-section" id="categories-section">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-header-left">
+                <span class="section-eyebrow">Explore Our Catalog</span>
+                <h2 class="section-title">Shop by Category</h2>
+                <p class="section-desc">Browse our curated collections engineered for quality and longevity.</p>
+            </div>
+            <div class="section-header-right">
+                <button class="btn btn-outline btn-sm" id="btn-show-all-cats">
+                    View All Categories
+                </button>
+            </div>
+        </div>
+
+        <div class="categories-grid" id="categories-grid">
+            <!-- Category Card 1: Electronics -->
+            <div class="category-card" data-category="Electronics">
+                <div class="category-visual">
+                    <span class="cat-emoji">🎧</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Electronics</h3>
+                    <p class="category-count">Audio, Gadgets &amp; Gear</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+
+            <!-- Category Card 2: Fashion -->
+            <div class="category-card" data-category="Fashion">
+                <div class="category-visual">
+                    <span class="cat-emoji">🧥</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Fashion</h3>
+                    <p class="category-count">Men &amp; Women Apparel</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+
+            <!-- Category Card 3: Footwear -->
+            <div class="category-card" data-category="Footwear">
+                <div class="category-visual">
+                    <span class="cat-emoji">👟</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Footwear</h3>
+                    <p class="category-count">Sneakers &amp; Casual Shoes</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+
+            <!-- Category Card 4: Watches -->
+            <div class="category-card" data-category="Watches">
+                <div class="category-visual">
+                    <span class="cat-emoji">⌚</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Watches</h3>
+                    <p class="category-count">Smart &amp; Luxury Timepieces</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+
+            <!-- Category Card 5: Home & Living -->
+            <div class="category-card" data-category="Home & Living">
+                <div class="category-visual">
+                    <span class="cat-emoji">🏠</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Home &amp; Living</h3>
+                    <p class="category-count">Modern Decor &amp; Kitchen</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+
+            <!-- Category Card 6: Accessories -->
+            <div class="category-card" data-category="Accessories">
+                <div class="category-visual">
+                    <span class="cat-emoji">🎒</span>
+                </div>
+                <div class="category-info">
+                    <h3 class="category-name">Accessories</h3>
+                    <p class="category-count">Bags, Wallets &amp; Eyewear</p>
+                    <span class="category-action">Browse Collection →</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 4. Promotional / Deal of the Day Section -->
+<section class="section deals-section" id="deals-section">
+    <div class="container">
+        <div class="deal-banner-card">
+            <div class="deal-content">
+                <div class="deal-tag">
+                    <span class="pulse-dot"></span>
+                    <span>LIMITED TIME OFFER</span>
+                </div>
+                <h2 class="deal-title">Deal of the Day: Premium Chronograph</h2>
+                <p class="deal-description">
+                    Equipped with sapphire crystal glass, 50m water resistance, and Japanese automatic movement. Claim your 40% discount before timer runs out!
+                </p>
+
+                <!-- Interactive Countdown Timer -->
+                <div class="countdown-timer" id="deal-countdown" aria-label="Deal timer">
+                    <div class="timer-unit">
+                        <span class="timer-val" id="countdown-hours">08</span>
+                        <span class="timer-lbl">Hours</span>
+                    </div>
+                    <span class="timer-sep">:</span>
+                    <div class="timer-unit">
+                        <span class="timer-val" id="countdown-minutes">45</span>
+                        <span class="timer-lbl">Minutes</span>
+                    </div>
+                    <span class="timer-sep">:</span>
+                    <div class="timer-unit">
+                        <span class="timer-val" id="countdown-seconds">30</span>
+                        <span class="timer-lbl">Seconds</span>
+                    </div>
+                </div>
+
+                <div class="deal-progress-wrap">
+                    <div class="progress-labels">
+                        <span>Already Claimed: <strong>74%</strong></span>
+                        <span>Only <strong>14 left</strong> in stock!</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: 74%;"></div>
+                    </div>
+                </div>
+
+                <div class="deal-cta-row">
+                    <button class="btn btn-primary btn-lg add-to-cart-btn" data-id="2" data-name="Classic Mechanical Chronograph Watch" data-price="189.50" data-image="⌚" data-category="Watches">
+                        <span>Claim Deal ($189.50)</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <div class="deal-pricing">
+                        <span class="deal-curr-price">$189.50</span>
+                        <span class="deal-strike-price">$299.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deal-visual">
+                <div class="deal-visual-inner">
+                    <span class="deal-emoji">⌚</span>
+                    <div class="deal-pill-float">40% OFF TODAY</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 5. Featured Products Catalog Section -->
+<section class="section products-section" id="products-section">
+    <div class="container">
+        <!-- Section Controls: Category Filter Tabs & Sorter -->
+        <div class="products-section-header">
+            <div>
+                <span class="section-eyebrow">Handpicked For You</span>
+                <h2 class="section-title">Featured Products</h2>
+                <p class="section-desc">Explore top-rated products backed by customer reviews and verified quality.</p>
+            </div>
+
+            <div class="product-filters-toolbar">
+                <div class="category-tabs" id="catalog-category-tabs" role="tablist">
+                    <button class="filter-tab active" data-category="" role="tab" aria-selected="true">All</button>
+                    <button class="filter-tab" data-category="Electronics" role="tab" aria-selected="false">Electronics</button>
+                    <button class="filter-tab" data-category="Fashion" role="tab" aria-selected="false">Fashion</button>
+                    <button class="filter-tab" data-category="Footwear" role="tab" aria-selected="false">Footwear</button>
+                    <button class="filter-tab" data-category="Watches" role="tab" aria-selected="false">Watches</button>
+                    <button class="filter-tab" data-category="Home & Living" role="tab" aria-selected="false">Home &amp; Living</button>
+                    <button class="filter-tab" data-category="Accessories" role="tab" aria-selected="false">Accessories</button>
+                </div>
+
+                <div class="sort-selector-wrapper">
+                    <label for="catalog-sort-select" class="sort-label">Sort by:</label>
+                    <select id="catalog-sort-select" class="sort-select">
+                        <option value="featured">Featured</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="rating">Top Rated</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Filter Indicator Bar -->
+        <div class="active-filter-bar hidden" id="active-filter-bar">
+            <span>Filtering by: <strong id="active-filter-label">None</strong></span>
+            <button class="clear-filter-btn" id="btn-clear-active-filter">Clear filter ✕</button>
+        </div>
+
+        <!-- Products Grid Container -->
+        <div class="products-grid" id="main-products-grid">
+            <!-- Server-Side rendered or populated by default items -->
+            {% if products %}
+                {% for p in products %}
+                <article class="product-card" data-id="{{ p.id }}" data-category="{{ p.category_name }}" data-price="{{ p.price }}" data-rating="{{ p.rating }}">
+                    <div class="product-header">
+                        {% if p.rating >= 4.8 %}
+                        <span class="product-badge badge-hot">★ Best Seller</span>
+                        {% elif p.price < 50 %}
+                        <span class="product-badge badge-deal">Value Pick</span>
+                        {% else %}
+                        <span class="product-badge badge-new">Trending</span>
+                        {% endif %}
+
+                        <button class="wishlist-toggle-btn" data-id="{{ p.id }}" data-name="{{ p.name }}" aria-label="Add to wishlist" title="Save to wishlist">
+                            <span class="heart-icon">🤍</span>
+                        </button>
+                    </div>
+
+                    <div class="product-media">
+                        <span class="product-emoji-display">{{ p.image if p.image and not p.image.endswith('.png') else '📦' }}</span>
+                    </div>
+
+                    <div class="product-body">
+                        <div class="product-meta">
+                            <span class="product-category-tag">{{ p.category_name }}</span>
+                            <span class="product-stock-tag in-stock">● In Stock ({{ p.stock }})</span>
+                        </div>
+
+                        <h3 class="product-title" title="{{ p.name }}">{{ p.name }}</h3>
+
+                        <div class="product-rating-row">
+                            <span class="rating-stars">★★★★★</span>
+                            <span class="rating-score">{{ p.rating }} ({{ p.stock * 3 + 12 }})</span>
+                        </div>
+
+                        <div class="product-footer-row">
+                            <div class="price-display">
+                                <span class="price-current">${{ "%.2f"|format(p.price) }}</span>
+                                <span class="price-original">${{ "%.2f"|format(p.price * 1.3) }}</span>
+                            </div>
+
+                            <button 
+                                class="btn btn-primary btn-sm add-to-cart-btn" 
+                                data-id="{{ p.id }}" 
+                                data-name="{{ p.name }}" 
+                                data-price="{{ p.price }}" 
+                                data-image="{{ p.image if p.image and not p.image.endswith('.png') else '📦' }}"
+                                data-category="{{ p.category_name }}"
+                                aria-label="Add {{ p.name }} to cart"
+                            >
+                                <span class="btn-icon">🛒</span>
+                                <span>Add</span>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            {% else %}
+                <!-- Fallback will be rendered by main.js if no items -->
+            {% endif %}
+        </div>
+
+        <!-- UI State Showcase Banners (Demonstrating Reusable Loading, Empty, and Error States) -->
+        <div class="ui-states-showcase" id="ui-states-showcase">
+            <div class="states-showcase-header">
+                <span class="section-eyebrow">Design System Foundation</span>
+                <h3>Reusable UI Feedback States</h3>
+                <p>Standardized components for asynchronous data handling across modules.</p>
+            </div>
+
+            <div class="states-cards-grid">
+                <!-- 1. Loading State Example -->
+                <div class="state-demo-card">
+                    <div class="state-card-badge chip-info">Loading Skeleton State</div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-image skeleton-shimmer"></div>
+                        <div class="skeleton-line skeleton-title skeleton-shimmer"></div>
+                        <div class="skeleton-line skeleton-text skeleton-shimmer"></div>
+                        <div class="skeleton-line skeleton-btn skeleton-shimmer"></div>
+                    </div>
+                    <span class="state-caption">Active during API data fetches</span>
+                </div>
+
+                <!-- 2. Empty State Example -->
+                <div class="state-demo-card">
+                    <div class="state-card-badge chip-neutral">Empty State Component</div>
+                    <div class="empty-state-view">
+                        <span class="empty-state-icon">🔍</span>
+                        <h4>No Results Found</h4>
+                        <p>No products match your current search criteria.</p>
+                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('site-search-input').value='';">Reset Filter</button>
+                    </div>
+                    <span class="state-caption">Triggered when queries return 0 items</span>
+                </div>
+
+                <!-- 3. Error State Example -->
+                <div class="state-demo-card">
+                    <div class="state-card-badge chip-danger">Error Alert State</div>
+                    <div class="error-state-view">
+                        <span class="error-state-icon">⚠️</span>
+                        <h4>Connection Error</h4>
+                        <p>Unable to retrieve live catalog from server.</p>
+                        <button class="btn btn-secondary btn-sm" id="btn-retry-sample">Retry Connection</button>
+                    </div>
+                    <span class="state-caption">Graceful fallback when network fails</span>
+                </div>
+
+                <!-- 4. Success State Example -->
+                <div class="state-demo-card">
+                    <div class="state-card-badge chip-success">Success Toast State</div>
+                    <div class="success-state-view">
+                        <span class="success-state-icon">✅</span>
+                        <h4>Action Successful</h4>
+                        <p>Item added to shopping bag with live total update.</p>
+                        <button class="btn btn-primary btn-sm" onclick="showToast('Sample action completed successfully!', 'success');">Trigger Toast</button>
+                    </div>
+                    <span class="state-caption">Non-intrusive feedback toasts</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}My Account — ShopEase{% endblock %}
+
+{% block content %}
+<div class="profile-page-wrapper">
+    <div class="container profile-container">
+        <!-- Profile Header Banner -->
+        <div class="profile-hero-card">
+            <div class="profile-hero-left">
+                <div class="profile-avatar-circle">
+                    <span>{{ user.name[:2]|upper }}</span>
+                </div>
+                <div class="profile-hero-info">
+                    <div class="profile-name-row">
+                        <h1 class="profile-user-name">{{ user.name }}</h1>
+                        <span class="role-badge role-{{ user.role|lower }}">{{ user.role }}</span>
+                    </div>
+                    <p class="profile-user-email">{{ user.email }}</p>
+                    <span class="member-since">Member since {{ user.created_at.strftime('%B %Y') if user.created_at else '2026' }}</span>
+                </div>
+            </div>
+
+            <div class="profile-hero-right">
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline btn-sm btn-logout-hero">
+                    <span>Sign Out</span>
+                    <span>🚪</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="profile-flash-container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <span class="alert-icon">
+                                {% if category == 'error' %}⚠️
+                                {% elif category == 'success' %}✅
+                                {% elif category == 'warning' %}🔔
+                                {% else %}ℹ️{% endif %}
+                            </span>
+                            <span class="alert-text">{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Profile Content Grid -->
+        <div class="profile-grid">
+            <!-- Left Column: Forms -->
+            <div class="profile-forms-column">
+                <!-- 1. Personal Details Form -->
+                <div class="profile-card">
+                    <div class="profile-card-header">
+                        <span class="card-icon">👤</span>
+                        <div>
+                            <h3 class="profile-card-title">Personal Information</h3>
+                            <p class="profile-card-subtitle">Manage your personal identification details.</p>
+                        </div>
+                    </div>
+
+                    <form action="{{ url_for('main.profile') }}" method="POST" class="profile-form">
+                        <input type="hidden" name="action" value="update_profile">
+
+                        <div class="form-group">
+                            <label for="prof-name" class="form-label">Full Name <span class="req">*</span></label>
+                            <input 
+                                type="text" 
+                                id="prof-name" 
+                                name="name" 
+                                class="form-control" 
+                                value="{{ user.name }}" 
+                                required 
+                                minlength="2"
+                                maxlength="100"
+                            >
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="prof-email" class="form-label">Email Address <span class="opt">(Permanent)</span></label>
+                                <input 
+                                    type="email" 
+                                    id="prof-email" 
+                                    class="form-control form-control-disabled" 
+                                    value="{{ user.email }}" 
+                                    disabled 
+                                    readonly
+                                >
+                                <small class="form-hint">Email address cannot be changed directly.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="prof-phone" class="form-label">Phone Number</label>
+                                <input 
+                                    type="tel" 
+                                    id="prof-phone" 
+                                    name="phone" 
+                                    class="form-control" 
+                                    placeholder="+1 555-0199" 
+                                    value="{{ user.phone if user.phone else '' }}"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-actions-right">
+                            <button type="submit" class="btn btn-primary" id="btn-save-profile">
+                                Save Profile Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 2. Security & Password Change Form -->
+                <div class="profile-card">
+                    <div class="profile-card-header">
+                        <span class="card-icon">🔒</span>
+                        <div>
+                            <h3 class="profile-card-title">Security &amp; Password</h3>
+                            <p class="profile-card-subtitle">Ensure your account uses a strong, unique password.</p>
+                        </div>
+                    </div>
+
+                    <form action="{{ url_for('main.profile') }}" method="POST" class="profile-form">
+                        <input type="hidden" name="action" value="change_password">
+
+                        <div class="form-group">
+                            <label for="prof-current-password" class="form-label">Current Password <span class="req">*</span></label>
+                            <div class="input-with-icon">
+                                <input 
+                                    type="password" 
+                                    id="prof-current-password" 
+                                    name="current_password" 
+                                    class="form-control" 
+                                    placeholder="Enter your current password" 
+                                    required
+                                >
+                                <button type="button" class="btn-toggle-password" data-target="prof-current-password" aria-label="Toggle password">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="prof-new-password" class="form-label">New Password <span class="req">*</span></label>
+                                <div class="input-with-icon">
+                                    <input 
+                                        type="password" 
+                                        id="prof-new-password" 
+                                        name="new_password" 
+                                        class="form-control" 
+                                        placeholder="Min. 6 characters" 
+                                        required 
+                                        minlength="6"
+                                    >
+                                    <button type="button" class="btn-toggle-password" data-target="prof-new-password" aria-label="Toggle password">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="prof-confirm-password" class="form-label">Confirm New Password <span class="req">*</span></label>
+                                <div class="input-with-icon">
+                                    <input 
+                                        type="password" 
+                                        id="prof-confirm-password" 
+                                        name="confirm_password" 
+                                        class="form-control" 
+                                        placeholder="Re-enter new password" 
+                                        required 
+                                        minlength="6"
+                                    >
+                                    <button type="button" class="btn-toggle-password" data-target="prof-confirm-password" aria-label="Toggle password">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions-right">
+                            <button type="submit" class="btn btn-secondary" id="btn-change-password">
+                                Update Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Stats & Shortcuts -->
+            <div class="profile-stats-column">
+                <div class="profile-card">
+                    <h3 class="profile-card-title">Account Summary</h3>
+                    
+                    <div class="account-stat-tiles">
+                        <div class="stat-tile">
+                            <span class="stat-icon">🛍️</span>
+                            <div class="stat-info">
+                                <span class="stat-val">{{ user.cart.items.count() if user.cart else 0 }}</span>
+                                <span class="stat-lbl">Cart Items</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-tile">
+                            <span class="stat-icon">🤍</span>
+                            <div class="stat-info">
+                                <span class="stat-val">{{ user.wishlist_items.count() if user.wishlist_items else 0 }}</span>
+                                <span class="stat-lbl">Wishlist Items</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-tile">
+                            <span class="stat-icon">📦</span>
+                            <div class="stat-info">
+                                <span class="stat-val">{{ user.orders.count() if user.orders else 0 }}</span>
+                                <span class="stat-lbl">Total Orders</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-shortcuts-list">
+                        <button class="profile-shortcut-item" onclick="openCartDrawer();">
+                            <span class="shortcut-icon">🛒</span>
+                            <span class="shortcut-text">Open Shopping Bag</span>
+                            <span class="shortcut-arrow">→</span>
+                        </button>
+                        <a href="{{ url_for('main.index') }}#products-section" class="profile-shortcut-item">
+                            <span class="shortcut-icon">🏷️</span>
+                            <span class="shortcut-text">Explore Products</span>
+                            <span class="shortcut-arrow">→</span>
+                        </a>
+                        <a href="{{ url_for('main.logout') }}" class="profile-shortcut-item text-danger">
+                            <span class="shortcut-icon">🚪</span>
+                            <span class="shortcut-text">Sign Out</span>
+                            <span class="shortcut-arrow">→</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Academic Info Card -->
+                <div class="profile-academic-card">
+                    <h4>🎓 Module 2 Verified</h4>
+                    <p>Session-based authentication with secure Werkzeug password hashing and role enforcement.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Toggle password visibility
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const isPassword = target.getAttribute('type') === 'password';
+            target.setAttribute('type', isPassword ? 'text' : 'password');
+            btn.textContent = isPassword ? '🙈' : '👁️';
+        });
+    });
+});
+</script>
+{% endblock %}

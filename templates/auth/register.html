@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Create an Account — ShopEase{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="container auth-container">
+        <div class="auth-card register-card">
+            <!-- Brand header -->
+            <div class="auth-card-header">
+                <a href="{{ url_for('main.index') }}" class="auth-brand" aria-label="ShopEase Home">
+                    <span class="auth-brand-icon">🛍️</span>
+                    <span class="auth-brand-text">Shop<span class="brand-accent">Ease</span></span>
+                </a>
+                <h1 class="auth-title">Create Your Account</h1>
+                <p class="auth-subtitle">Join thousands of shoppers and get 15% off your first order.</p>
+            </div>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="auth-flash-container">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                <span class="alert-icon">
+                                    {% if category == 'error' %}⚠️
+                                    {% elif category == 'success' %}✅
+                                    {% elif category == 'warning' %}🔔
+                                    {% else %}ℹ️{% endif %}
+                                </span>
+                                <span class="alert-text">{{ message }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Registration Form -->
+            <form action="{{ url_for('main.register') }}" method="POST" class="auth-form" id="register-form">
+                <div class="form-group">
+                    <label for="reg-name" class="form-label">Full Name <span class="req">*</span></label>
+                    <div class="input-with-icon">
+                        <span class="field-icon">👤</span>
+                        <input 
+                            type="text" 
+                            id="reg-name" 
+                            name="name" 
+                            class="form-control" 
+                            placeholder="e.g. Sarah Jenkins" 
+                            value="{{ name if name else '' }}" 
+                            required 
+                            minlength="2"
+                            maxlength="100"
+                            autofocus
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="reg-email" class="form-label">Email Address <span class="req">*</span></label>
+                        <div class="input-with-icon">
+                            <span class="field-icon">✉️</span>
+                            <input 
+                                type="email" 
+                                id="reg-email" 
+                                name="email" 
+                                class="form-control" 
+                                placeholder="name@domain.com" 
+                                value="{{ email if email else '' }}" 
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reg-phone" class="form-label">Phone Number <span class="opt">(Optional)</span></label>
+                        <div class="input-with-icon">
+                            <span class="field-icon">📱</span>
+                            <input 
+                                type="tel" 
+                                id="reg-phone" 
+                                name="phone" 
+                                class="form-control" 
+                                placeholder="+1 555-0199" 
+                                value="{{ phone if phone else '' }}"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="reg-password" class="form-label">Password <span class="req">*</span></label>
+                        <div class="input-with-icon">
+                            <span class="field-icon">🔒</span>
+                            <input 
+                                type="password" 
+                                id="reg-password" 
+                                name="password" 
+                                class="form-control" 
+                                placeholder="Min. 6 characters" 
+                                required 
+                                minlength="6"
+                                autocomplete="new-password"
+                            >
+                            <button type="button" class="btn-toggle-password" data-target="reg-password" aria-label="Toggle password visibility">
+                                👁️
+                            </button>
+                        </div>
+                        <!-- Live Password Strength Meter -->
+                        <div class="pwd-strength-container" id="pwd-strength-container">
+                            <div class="pwd-strength-bar">
+                                <div class="pwd-strength-fill" id="pwd-strength-fill"></div>
+                            </div>
+                            <span class="pwd-strength-text" id="pwd-strength-text">Password strength</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reg-confirm-password" class="form-label">Confirm Password <span class="req">*</span></label>
+                        <div class="input-with-icon">
+                            <span class="field-icon">🔒</span>
+                            <input 
+                                type="password" 
+                                id="reg-confirm-password" 
+                                name="confirm_password" 
+                                class="form-control" 
+                                placeholder="Re-enter password" 
+                                required 
+                                minlength="6"
+                                autocomplete="new-password"
+                            >
+                            <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" aria-label="Toggle password visibility">
+                                👁️
+                            </button>
+                        </div>
+                        <div class="pwd-match-indicator hidden" id="pwd-match-indicator"></div>
+                    </div>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <label class="custom-checkbox-label">
+                        <input type="checkbox" name="terms" required checked id="reg-terms">
+                        <span class="checkbox-box"></span>
+                        <span>I agree to the <a href="#terms" class="text-link">Terms of Service</a> &amp; <a href="#privacy" class="text-link">Privacy Policy</a></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-register-submit">
+                    <span>Create Free Account</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </form>
+
+            <!-- Footer link to login -->
+            <div class="auth-card-footer">
+                <p>Already have an account? <a href="{{ url_for('main.login') }}" class="auth-switch-link">Sign In</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Toggle password visibility
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const isPassword = target.getAttribute('type') === 'password';
+            target.setAttribute('type', isPassword ? 'text' : 'password');
+            btn.textContent = isPassword ? '🙈' : '👁️';
+        });
+    });
+
+    // Password strength meter
+    const pwdInput = document.getElementById('reg-password');
+    const confirmInput = document.getElementById('reg-confirm-password');
+    const fillEl = document.getElementById('pwd-strength-fill');
+    const textEl = document.getElementById('pwd-strength-text');
+    const matchIndicator = document.getElementById('pwd-match-indicator');
+
+    function checkStrength(val) {
+        if (!val) {
+            fillEl.style.width = '0%';
+            fillEl.style.backgroundColor = '#e2e8f0';
+            textEl.textContent = 'Enter at least 6 characters';
+            textEl.style.color = '#94a3b8';
+            return;
+        }
+
+        let score = 0;
+        if (val.length >= 6) score += 25;
+        if (val.length >= 8) score += 25;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 25;
+        if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 25;
+
+        fillEl.style.width = `${score}%`;
+
+        if (score <= 25) {
+            fillEl.style.backgroundColor = '#ef4444';
+            textEl.textContent = 'Weak password';
+            textEl.style.color = '#ef4444';
+        } else if (score <= 75) {
+            fillEl.style.backgroundColor = '#f59e0b';
+            textEl.textContent = 'Good password';
+            textEl.style.color = '#f59e0b';
+        } else {
+            fillEl.style.backgroundColor = '#10b981';
+            textEl.textContent = 'Strong password';
+            textEl.style.color = '#10b981';
+        }
+    }
+
+    function checkMatch() {
+        if (!confirmInput.value) {
+            matchIndicator.classList.add('hidden');
+            return;
+        }
+        matchIndicator.classList.remove('hidden');
+        if (pwdInput.value === confirmInput.value) {
+            matchIndicator.textContent = '✓ Passwords match';
+            matchIndicator.className = 'pwd-match-indicator text-success';
+        } else {
+            matchIndicator.textContent = '✗ Passwords do not match';
+            matchIndicator.className = 'pwd-match-indicator text-danger';
+        }
+    }
+
+    if (pwdInput) {
+        pwdInput.addEventListener('input', () => {
+            checkStrength(pwdInput.value);
+            checkMatch();
+        });
+    }
+
+    if (confirmInput) {
+        confirmInput.addEventListener('input', checkMatch);
+    }
+});
+</script>
+{% endblock %}

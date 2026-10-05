@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — ShopEase{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="container auth-container">
+        <div class="auth-card">
+            <!-- Brand header -->
+            <div class="auth-card-header">
+                <a href="{{ url_for('main.index') }}" class="auth-brand" aria-label="ShopEase Home">
+                    <span class="auth-brand-icon">🛍️</span>
+                    <span class="auth-brand-text">Shop<span class="brand-accent">Ease</span></span>
+                </a>
+                <h1 class="auth-title">Welcome Back</h1>
+                <p class="auth-subtitle">Sign in to access your orders, saved items, and personalized deals.</p>
+            </div>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="auth-flash-container">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                <span class="alert-icon">
+                                    {% if category == 'error' %}⚠️
+                                    {% elif category == 'success' %}✅
+                                    {% elif category == 'warning' %}🔔
+                                    {% else %}ℹ️{% endif %}
+                                </span>
+                                <span class="alert-text">{{ message }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form action="{{ url_for('main.login', next=next) }}" method="POST" class="auth-form" id="login-form">
+                <div class="form-group">
+                    <label for="login-email" class="form-label">Email Address <span class="req">*</span></label>
+                    <div class="input-with-icon">
+                        <span class="field-icon">✉️</span>
+                        <input 
+                            type="email" 
+                            id="login-email" 
+                            name="email" 
+                            class="form-control" 
+                            placeholder="you@example.com" 
+                            value="{{ email if email else '' }}" 
+                            required 
+                            autofocus
+                            autocomplete="email"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label for="login-password" class="form-label">Password <span class="req">*</span></label>
+                        <a href="javascript:void(0)" class="forgot-password-link" id="btn-forgot-password">Forgot password?</a>
+                    </div>
+                    <div class="input-with-icon">
+                        <span class="field-icon">🔒</span>
+                        <input 
+                            type="password" 
+                            id="login-password" 
+                            name="password" 
+                            class="form-control" 
+                            placeholder="Enter your password" 
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" class="btn-toggle-password" data-target="login-password" aria-label="Toggle password visibility">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <label class="custom-checkbox-label">
+                        <input type="checkbox" name="remember" value="1" id="login-remember">
+                        <span class="checkbox-box"></span>
+                        <span>Remember me on this device</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login-submit">
+                    <span>Sign In</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </form>
+
+            <!-- Quick Demo Credentials for Evaluation -->
+            <div class="auth-demo-box">
+                <span class="demo-box-title">⚡ Instant Demo Credentials:</span>
+                <div class="demo-btn-group">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-fill-customer">
+                        👤 Fill Customer Account
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-fill-admin">
+                        🛡️ Fill Admin Account
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer link to register -->
+            <div class="auth-card-footer">
+                <p>Don't have an account yet? <a href="{{ url_for('main.register', next=next) }}" class="auth-switch-link">Create an Account</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Fill demo credentials
+    const emailInput = document.getElementById('login-email');
+    const pwdInput = document.getElementById('login-password');
+    const fillCustomer = document.getElementById('btn-fill-customer');
+    const fillAdmin = document.getElementById('btn-fill-admin');
+
+    if (fillCustomer) {
+        fillCustomer.addEventListener('click', () => {
+            if (emailInput && pwdInput) {
+                emailInput.value = 'customer@shopease.local';
+                pwdInput.value = 'Customer123!';
+                showToast('Filled Customer demo credentials!', 'info');
+            }
+        });
+    }
+
+    if (fillAdmin) {
+        fillAdmin.addEventListener('click', () => {
+            if (emailInput && pwdInput) {
+                emailInput.value = 'admin@shopease.local';
+                pwdInput.value = 'Admin123!';
+                showToast('Filled Admin demo credentials!', 'info');
+            }
+        });
+    }
+
+    // Toggle password visibility
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const isPassword = target.getAttribute('type') === 'password';
+            target.setAttribute('type', isPassword ? 'text' : 'password');
+            btn.textContent = isPassword ? '🙈' : '👁️';
+        });
+    });
+
+    // Forgot password demo modal
+    const forgotBtn = document.getElementById('btn-forgot-password');
+    if (forgotBtn) {
+        forgotBtn.addEventListener('click', () => {
+            openGeneralModal(
+                'Password Reset Assistance',
+                `<p>For this academic project, you can use the default demo credentials provided below or register a new user account.</p>
+                 <div style="margin-top: 0.85rem; padding: 0.85rem; background: #f8fafc; border-radius: 8px; font-size: 0.88rem;">
+                    <strong>Customer:</strong> customer@shopease.local / Customer123!<br>
+                    <strong>Admin:</strong> admin@shopease.local / Admin123!
+                 </div>`
+            );
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} — ShopEase{% endblock %}
+
+{% block content %}
+<div class="product-detail-page">
+    <div class="container product-detail-container">
+
+        <!-- Breadcrumb Navigation -->
+        <nav class="detail-breadcrumb" aria-label="Breadcrumb">
+            <a href="{{ url_for('main.index') }}">Home</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="{{ url_for('main.products') }}">Products</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="{{ url_for('main.products', category=product.category_name) }}">{{ product.category_name }}</a>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-current">{{ product.name }}</span>
+        </nav>
+
+        <!-- Main Product Showcase Grid -->
+        <div class="product-showcase-grid">
+            <!-- Left Column: Product Media Visual -->
+            <div class="detail-media-card">
+                <div class="detail-media-display">
+                    {% if product.image and product.image.startswith('/static/') %}
+                        <img src="{{ product.image }}" alt="{{ product.name }}" class="detail-product-img">
+                    {% elif product.image and not product.image.endswith('.png') %}
+                        <span class="detail-product-emoji">{{ product.image }}</span>
+                    {% else %}
+                        <span class="detail-product-emoji">📦</span>
+                    {% endif %}
+                </div>
+
+                <div class="detail-media-badges">
+                    <span class="detail-badge-cat">{{ product.category_name }}</span>
+                    {% if product.stock > 0 %}
+                        <span class="detail-badge-stock in-stock">✓ Available</span>
+                    {% else %}
+                        <span class="detail-badge-stock out-of-stock">✕ Out of Stock</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Column: Product Meta & Specifications -->
+            <div class="detail-info-card">
+                <div class="detail-meta-top">
+                    <span class="detail-cat-link">
+                        <a href="{{ url_for('main.products', category=product.category_name) }}">{{ product.category_name }}</a>
+                    </span>
+                    <span class="detail-item-id">Product SKU: #{{ product.id }}</span>
+                </div>
+
+                <h1 class="detail-product-title">{{ product.name }}</h1>
+
+                <!-- Rating Row -->
+                <div class="detail-rating-row">
+                    <div class="star-rating">
+                        <span class="star-icon">★</span>
+                        <strong class="rating-value">{{ "%.1f"|format(product.rating) }}</strong>
+                    </div>
+                    <span class="rating-divider">·</span>
+                    <span class="review-count">Verified Customer Rating</span>
+                    <span class="rating-divider">·</span>
+                    <span class="verified-badge">🛡️ Authentic</span>
+                </div>
+
+                <!-- Price & Stock Container -->
+                <div class="detail-pricing-box">
+                    <div class="price-wrap">
+                        <span class="price-currency">$</span>
+                        <span class="price-amount">{{ "%.2f"|format(product.price) }}</span>
+                    </div>
+
+                    <div class="stock-indicator-wrap">
+                        {% if product.stock <= 0 %}
+                            <div class="detail-stock-alert out-of-stock">
+                                <span class="stock-dot"></span>
+                                <div>
+                                    <strong>Currently Out of Stock</strong>
+                                    <p>We are restocking soon. Check back shortly!</p>
+                                </div>
+                            </div>
+                        {% elif product.stock <= 5 %}
+                            <div class="detail-stock-alert low-stock">
+                                <span class="stock-dot"></span>
+                                <div>
+                                    <strong>Only {{ product.stock }} item(s) left in stock!</strong>
+                                    <p>Order today to secure yours before it sells out.</p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="detail-stock-alert in-stock">
+                                <span class="stock-dot"></span>
+                                <div>
+                                    <strong>In Stock &amp; Ready to Ship</strong>
+                                    <p>Available in warehouse for immediate dispatch.</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Description & Specifications Block -->
+                <div class="detail-description-section">
+                    <h3 class="desc-heading">Product Details &amp; Specifications</h3>
+                    <div class="desc-body">
+                        {% if product.description %}
+                            <p>{{ product.description }}</p>
+                        {% else %}
+                            <p>No extended description provided for this product.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Action Button Controls -->
+                <div class="detail-actions-panel">
+                    <button type="button" class="btn btn-outline detail-wishlist-btn" id="btn-detail-wishlist" data-id="{{ product.id }}" data-name="{{ product.name }}">
+                        <span class="heart-icon">🤍</span>
+                        <span id="detail-wishlist-label">Add to Wishlist</span>
+                    </button>
+
+                    <a href="{{ url_for('main.products') }}" class="btn btn-secondary detail-back-btn">
+                        <span>←</span> Back to Products
+                    </a>
+                </div>
+
+                <!-- Trust Guarantee Perks Grid -->
+                <div class="detail-perks-grid">
+                    <div class="perk-box">
+                        <span class="perk-icon">🚚</span>
+                        <div class="perk-text">
+                            <strong>Fast Tracked Delivery</strong>
+                            <span>Free shipping on all orders over $50</span>
+                        </div>
+                    </div>
+                    <div class="perk-box">
+                        <span class="perk-icon">🔄</span>
+                        <div class="perk-text">
+                            <strong>30-Day Hassle-Free Returns</strong>
+                            <span>Easy returns &amp; exchanges</span>
+                        </div>
+                    </div>
+                    <div class="perk-box">
+                        <span class="perk-icon">🔒</span>
+                        <div class="perk-text">
+                            <strong>Secure 256-Bit SSL</strong>
+                            <span>Encrypted payment protection</span>
+                        </div>
+                    </div>
+                    <div class="perk-box">
+                        <span class="perk-icon">🛡️</span>
+                        <div class="perk-text">
+                            <strong>100% Genuine Guarantee</strong>
+                            <span>Direct authentic manufacturer warranty</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Related Products Discovery Section -->
+        {% if related_products %}
+        <section class="related-products-section">
+            <div class="related-header">
+                <div>
+                    <span class="section-eyebrow">Curated Recommendations</span>
+                    <h2 class="related-heading">You May Also Like in {{ product.category_name }}</h2>
+                </div>
+                <a href="{{ url_for('main.products', category=product.category_name) }}" class="view-more-link">
+                    View More in {{ product.category_name }} →
+                </a>
+            </div>
+
+            <div class="related-products-grid">
+                {% for item in related_products %}
+                <div class="product-card" data-id="{{ item.id }}">
+                    <div class="product-media-wrap">
+                        <a href="{{ url_for('main.product_detail', product_id=item.id) }}" class="product-media-link">
+                            {% if item.image and item.image.startswith('/static/') %}
+                                <img src="{{ item.image }}" alt="{{ item.name }}" class="product-card-img" loading="lazy">
+                            {% elif item.image and not item.image.endswith('.png') %}
+                                <span class="product-emoji">{{ item.image }}</span>
+                            {% else %}
+                                <span class="product-emoji">📦</span>
+                            {% endif %}
+                        </a>
+                        <span class="product-card-category-tag">{{ item.category_name }}</span>
+                    </div>
+
+                    <div class="product-body">
+                        <div class="product-rating-row">
+                            <span class="stars">★</span>
+                            <span class="score">{{ "%.1f"|format(item.rating) }}</span>
+                        </div>
+
+                        <h3 class="product-title">
+                            <a href="{{ url_for('main.product_detail', product_id=item.id) }}">{{ item.name }}</a>
+                        </h3>
+
+                        <div class="product-card-footer">
+                            <div class="price-stock-box">
+                                <span class="product-price">${{ "%.2f"|format(item.price) }}</span>
+                                {% if item.stock <= 0 %}
+                                    <span class="stock-badge out-of-stock">Out of Stock</span>
+                                {% elif item.stock <= 5 %}
+                                    <span class="stock-badge low-stock">Low Stock</span>
+                                {% else %}
+                                    <span class="stock-badge in-stock">In Stock</span>
+                                {% endif %}
+                            </div>
+
+                            <a href="{{ url_for('main.product_detail', product_id=item.id) }}" class="btn btn-outline btn-sm btn-view-details">
+                                View Details →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Wishlist binding for product detail page
+    const btnWishlist = document.getElementById('btn-detail-wishlist');
+    const lblWishlist = document.getElementById('detail-wishlist-label');
+
+    if (btnWishlist && window.AppState) {
+        const id = btnWishlist.getAttribute('data-id');
+        const name = btnWishlist.getAttribute('data-name');
+
+        function updateWishlistButton() {
+            const hasItem = AppState.wishlist && AppState.wishlist.includes(parseInt(id));
+            btnWishlist.classList.toggle('active', hasItem);
+            btnWishlist.querySelector('.heart-icon').textContent = hasItem ? '❤️' : '🤍';
+            if (lblWishlist) {
+                lblWishlist.textContent = hasItem ? 'Saved in Wishlist' : 'Add to Wishlist';
+            }
+        }
+        updateWishlistButton();
+
+        btnWishlist.addEventListener('click', () => {
+            const added = AppState.toggleWishlist({ id, name });
+            updateWishlistButton();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+
+{% block title %}Product &amp; Category Management — Admin Dashboard — ShopEase{% endblock %}
+
+{% block content %}
+<div class="admin-page-wrapper">
+    <div class="container admin-container">
+
+        <!-- Admin Header Bar -->
+        <div class="admin-header-row">
+            <div class="admin-header-title">
+                <div class="admin-breadcrumb">
+                    <a href="{{ url_for('main.index') }}">Store</a>
+                    <span>/</span>
+                    <span class="breadcrumb-current">Admin Center</span>
+                </div>
+                <h1 class="admin-page-heading">
+                    <span class="heading-icon">📦</span> Product &amp; Category Management
+                </h1>
+                <p class="admin-page-sub">
+                    Manage catalog inventory, add new merchandise, adjust pricing, upload product images, and oversee store categories.
+                </p>
+            </div>
+            <div class="admin-header-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-open-category-modal">
+                    <span>🏷️</span> Add Category
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-open-create-product-modal">
+                    <span>➕</span> Add New Product
+                </button>
+            </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="admin-stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon-wrap bg-primary-soft">📦</div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Products</span>
+                    <strong class="stat-value" id="stat-total-count">{{ stats.total_products }}</strong>
+                </div>
+                <span class="stat-sub">{{ stats.active_products }} active in storefront</span>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon-wrap bg-success-soft">✅</div>
+                <div class="stat-info">
+                    <span class="stat-label">Active Listed</span>
+                    <strong class="stat-value text-success">{{ stats.active_products }}</strong>
+                </div>
+                <span class="stat-sub">{{ stats.inactive_products }} currently disabled</span>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon-wrap bg-warning-soft">⚠️</div>
+                <div class="stat-info">
+                    <span class="stat-label">Low Stock (≤ 5)</span>
+                    <strong class="stat-value text-warning">{{ stats.low_stock }}</strong>
+                </div>
+                <span class="stat-sub">Needs reorder soon</span>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon-wrap bg-danger-soft">🚨</div>
+                <div class="stat-info">
+                    <span class="stat-label">Out of Stock</span>
+                    <strong class="stat-value text-danger">{{ stats.out_of_stock }}</strong>
+                </div>
+                <span class="stat-sub">Immediate attention</span>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon-wrap bg-indigo-soft">🏷️</div>
+                <div class="stat-info">
+                    <span class="stat-label">Categories</span>
+                    <strong class="stat-value">{{ stats.total_categories }}</strong>
+                </div>
+                <span class="stat-sub">Active departments</span>
+            </div>
+        </div>
+
+        <!-- Main Product Section -->
+        <div class="admin-card">
+            <!-- Filter & Search Toolbar -->
+            <div class="admin-toolbar">
+                <div class="admin-search-box">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        id="admin-catalog-search" 
+                        class="admin-search-input" 
+                        placeholder="Search products by title, ID, or description..."
+                    >
+                    <button type="button" id="admin-search-clear" class="btn-clear hidden" aria-label="Clear filter">✕</button>
+                </div>
+
+                <div class="admin-filter-group">
+                    <select id="filter-category-select" class="form-select-sm" aria-label="Filter by Category">
+                        <option value="">All Categories ({{ stats.total_categories }})</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.name }}">{{ cat.name }} ({{ cat.product_count }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <select id="filter-status-select" class="form-select-sm" aria-label="Filter by Status">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active Listed</option>
+                        <option value="inactive">Disabled / Inactive</option>
+                    </select>
+
+                    <select id="filter-stock-select" class="form-select-sm" aria-label="Filter by Stock">
+                        <option value="">All Inventory Levels</option>
+                        <option value="in_stock">In Stock (&gt; 5)</option>
+                        <option value="low_stock">Low Stock (1 - 5)</option>
+                        <option value="out_of_stock">Out of Stock (0)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="table-responsive">
+                <table class="admin-table" id="admin-products-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">Item</th>
+                            <th>Product Information</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-products-tbody">
+                        {% if products %}
+                            {% for p in products %}
+                            <tr class="product-row" 
+                                data-id="{{ p.id }}" 
+                                data-name="{{ p.name|lower }}" 
+                                data-category="{{ p.category_name }}" 
+                                data-status="{{ 'active' if p.is_active else 'inactive' }}"
+                                data-stock-status="{{ p.stock_status }}"
+                            >
+                                <td class="item-media-cell">
+                                    <div class="admin-product-thumb">
+                                        {% if p.image and p.image.startswith('/static/') %}
+                                            <img src="{{ p.image }}" alt="{{ p.name }}" class="thumb-img">
+                                        {% elif p.image and not p.image.endswith('.png') %}
+                                            <span class="thumb-emoji">{{ p.image }}</span>
+                                        {% else %}
+                                            <span class="thumb-emoji">📦</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="item-info-cell">
+                                    <div class="product-title-row">
+                                        <strong class="item-title" title="{{ p.name }}">{{ p.name }}</strong>
+                                        <span class="item-id-badge">#{{ p.id }}</span>
+                                    </div>
+                                    <div class="item-description-preview" title="{{ p.description }}">
+                                        {{ p.description[:90] }}{% if p.description|length > 90 %}...{% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge-category">{{ p.category_name or 'Unassigned' }}</span>
+                                </td>
+                                <td>
+                                    <strong class="item-price">${{ "%.2f"|format(p.price) }}</strong>
+                                </td>
+                                <td>
+                                    <div class="stock-cell">
+                                        <span class="stock-number">{{ p.stock }} units</span>
+                                        {% if p.stock <= 0 %}
+                                            <span class="stock-pill stock-out">Out of Stock</span>
+                                        {% elif p.stock <= 5 %}
+                                            <span class="stock-pill stock-low">Low Stock</span>
+                                        {% else %}
+                                            <span class="stock-pill stock-ok">In Stock</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if p.is_active %}
+                                        <span class="status-pill status-active">
+                                            <span class="status-indicator-dot online"></span> Active
+                                        </span>
+                                    {% else %}
+                                        <span class="status-pill status-inactive">
+                                            <span class="status-indicator-dot offline"></span> Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="actions-cell">
+                                    <div class="action-btn-group">
+                                        <!-- Edit button -->
+                                        <button 
+                                            type="button" 
+                                            class="btn-action btn-edit" 
+                                            title="Edit Product"
+                                            data-id="{{ p.id }}"
+                                            data-name="{{ p.name }}"
+                                            data-category-id="{{ p.category_id }}"
+                                            data-price="{{ p.price }}"
+                                            data-stock="{{ p.stock }}"
+                                            data-description="{{ p.description }}"
+                                            data-image="{{ p.image }}"
+                                            data-rating="{{ p.rating }}"
+                                            data-active="{{ '1' if p.is_active else '0' }}"
+                                        >
+                                            ✏️ Edit
+                                        </button>
+
+                                        <!-- Toggle Status Form -->
+                                        <form action="{{ url_for('admin.toggle_product_form', product_id=p.id) }}" method="POST" style="display:inline;">
+                                            <button 
+                                                type="submit" 
+                                                class="btn-action {{ 'btn-deactivate' if p.is_active else 'btn-activate' }}" 
+                                                title="{{ 'Deactivate Product' if p.is_active else 'Activate Product' }}"
+                                            >
+                                                {{ '🚫 Disable' if p.is_active else '✨ Enable' }}
+                                            </button>
+                                        </form>
+
+                                        <!-- Delete button (triggers confirmation modal) -->
+                                        <button 
+                                            type="button" 
+                                            class="btn-action btn-delete" 
+                                            title="Delete Product"
+                                            data-id="{{ p.id }}"
+                                            data-name="{{ p.name }}"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center empty-table-cell">
+                                    <div class="empty-state-wrap">
+                                        <span class="empty-emoji">📦</span>
+                                        <h4>No Products Found</h4>
+                                        <p>Click "Add New Product" above to create your first catalog item.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table empty search state -->
+            <div id="no-filter-results" class="empty-search-state hidden">
+                <span class="empty-search-icon">🔍</span>
+                <h4>No matching products found</h4>
+                <p>Try adjusting your search keywords or resetting your category and stock filters.</p>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-filters">Reset All Filters</button>
+            </div>
+        </div>
+
+        <!-- Category Management Section -->
+        <div class="admin-card category-manager-card">
+            <div class="card-header-flex">
+                <div>
+                    <h3 class="card-section-title">🏷️ Department Categories</h3>
+                    <p class="card-section-desc">Create and oversee category groupings for customer navigation and product organization.</p>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-open-category-modal-2">
+                    <span>➕</span> New Category
+                </button>
+            </div>
+
+            <div class="categories-chip-grid">
+                {% for cat in categories %}
+                <div class="category-chip-card">
+                    <div class="category-chip-info">
+                        <strong>{{ cat.name }}</strong>
+                        <span class="category-chip-count">{{ cat.product_count }} items</span>
+                    </div>
+                    {% if cat.description %}
+                    <p class="category-chip-desc">{{ cat.description }}</p>
+                    {% endif %}
+                    
+                    {% if cat.product_count == 0 %}
+                    <form action="{{ url_for('admin.delete_category_form', category_id=cat.id) }}" method="POST" onsubmit="return confirm('Delete empty category \'{{ cat.name }}\'?');" class="category-chip-delete">
+                        <button type="submit" class="btn-delete-cat" title="Delete Empty Category">🗑️</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ======================================================================= -->
+<!-- MODAL 1: Create Product Modal                                           -->
+<!-- ======================================================================= -->
+<div class="modal-backdrop hidden" id="modal-create-product" role="dialog" aria-hidden="true">
+    <div class="modal-card modal-card-lg">
+        <div class="modal-header">
+            <h3 class="modal-title">➕ Create New Product</h3>
+            <button type="button" class="modal-close" data-dismiss="modal-create-product" aria-label="Close modal">&times;</button>
+        </div>
+        <form action="{{ url_for('admin.create_product_form') }}" method="POST" enctype="multipart/form-data" id="form-create-product">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group col-8">
+                        <label for="create-name" class="form-label">Product Name <span class="req">*</span></label>
+                        <input type="text" id="create-name" name="name" class="form-control" placeholder="e.g. Wireless Noise-Cancelling Headphones" required maxlength="150">
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="create-category" class="form-label">Category <span class="req">*</span></label>
+                        <select id="create-category" name="category_id" class="form-control" required>
+                            <option value="">Select Category</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="create-price" class="form-label">Price ($ USD) <span class="req">*</span></label>
+                        <input type="number" step="0.01" min="0" id="create-price" name="price" class="form-control" placeholder="49.99" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="create-stock" class="form-label">Initial Stock <span class="req">*</span></label>
+                        <input type="number" step="1" min="0" id="create-stock" name="stock" class="form-control" placeholder="25" value="10" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="create-rating" class="form-label">Initial Rating (0-5)</label>
+                        <input type="number" step="0.1" min="0" max="5" id="create-rating" name="rating" class="form-control" placeholder="4.5" value="4.8">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="create-desc" class="form-label">Description</label>
+                    <textarea id="create-desc" name="description" class="form-control" rows="3" placeholder="Provide complete specifications, features, and dimensions..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="create-image-file" class="form-label">Upload Product Image (JPG, PNG, WEBP)</label>
+                        <input type="file" id="create-image-file" name="image_file" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                        <small class="form-hint">Max file size 16MB. Stored securely in <code>static/images/products/</code>.</small>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="create-image-url" class="form-label">Or Icon / Emoji Representation</label>
+                        <input type="text" id="create-image-url" name="image_url" class="form-control" placeholder="e.g. 🎧, ⌚, 👟 or /static/images/sample.jpg" value="📦">
+                    </div>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <label class="custom-checkbox-label">
+                        <input type="checkbox" name="is_active" value="1" checked id="create-active">
+                        <span class="checkbox-box"></span>
+                        <span>List product as <strong>Active</strong> and immediately visible to shoppers</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal-create-product">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-create-product">
+                    <span>➕</span> Create Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ======================================================================= -->
+<!-- MODAL 2: Edit Product Modal                                             -->
+<!-- ======================================================================= -->
+<div class="modal-backdrop hidden" id="modal-edit-product" role="dialog" aria-hidden="true">
+    <div class="modal-card modal-card-lg">
+        <div class="modal-header">
+            <h3 class="modal-title">✏️ Edit Product <span id="edit-product-id-label"></span></h3>
+            <button type="button" class="modal-close" data-dismiss="modal-edit-product" aria-label="Close modal">&times;</button>
+        </div>
+        <form id="form-edit-product" method="POST" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group col-8">
+                        <label for="edit-name" class="form-label">Product Name <span class="req">*</span></label>
+                        <input type="text" id="edit-name" name="name" class="form-control" required maxlength="150">
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="edit-category" class="form-label">Category <span class="req">*</span></label>
+                        <select id="edit-category" name="category_id" class="form-control" required>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="edit-price" class="form-label">Price ($ USD) <span class="req">*</span></label>
+                        <input type="number" step="0.01" min="0" id="edit-price" name="price" class="form-control" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="edit-stock" class="form-label">Stock Quantity <span class="req">*</span></label>
+                        <input type="number" step="1" min="0" id="edit-stock" name="stock" class="form-control" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="edit-rating" class="form-label">Rating (0-5)</label>
+                        <input type="number" step="0.1" min="0" max="5" id="edit-rating" name="rating" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-desc" class="form-label">Description</label>
+                    <textarea id="edit-desc" name="description" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="edit-image-file" class="form-label">Replace Image (Upload File)</label>
+                        <input type="file" id="edit-image-file" name="image_file" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="edit-image-url" class="form-label">Or Icon / Image String</label>
+                        <input type="text" id="edit-image-url" name="image_url" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <label class="custom-checkbox-label">
+                        <input type="checkbox" name="is_active" value="1" id="edit-active">
+                        <span class="checkbox-box"></span>
+                        <span>Product is <strong>Active</strong> (visible in public catalog)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal-edit-product">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-edit-product">
+                    <span>💾</span> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ======================================================================= -->
+<!-- MODAL 3: Create Category Modal                                          -->
+<!-- ======================================================================= -->
+<div class="modal-backdrop hidden" id="modal-create-category" role="dialog" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">🏷️ Add New Department Category</h3>
+            <button type="button" class="modal-close" data-dismiss="modal-create-category" aria-label="Close modal">&times;</button>
+        </div>
+        <form action="{{ url_for('admin.create_category_form') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="cat-name" class="form-label">Category Name <span class="req">*</span></label>
+                    <input type="text" id="cat-name" name="name" class="form-control" placeholder="e.g. Sports & Fitness" required maxlength="80">
+                </div>
+                <div class="form-group">
+                    <label for="cat-desc" class="form-label">Description (Optional)</label>
+                    <textarea id="cat-desc" name="description" class="form-control" rows="2" placeholder="Brief summary of items in this category..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal-create-category">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <span>🏷️</span> Create Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ======================================================================= -->
+<!-- MODAL 4: Delete Product Confirmation Modal                             -->
+<!-- ======================================================================= -->
+<div class="modal-backdrop hidden" id="modal-delete-confirm" role="dialog" aria-hidden="true">
+    <div class="modal-card modal-card-sm">
+        <div class="modal-header bg-danger-soft">
+            <h3 class="modal-title text-danger">⚠️ Confirm Product Deletion</h3>
+            <button type="button" class="modal-close" data-dismiss="modal-delete-confirm" aria-label="Close modal">&times;</button>
+        </div>
+        <form id="form-delete-product" method="POST">
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="delete-product-name"></strong>?</p>
+                <p class="text-muted" style="font-size: 0.88rem; margin-top: 0.5rem;">
+                    If this product has historical customer orders, it will be automatically <strong>deactivated</strong> instead of deleted to preserve sales history.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal-delete-confirm">Cancel</button>
+                <button type="submit" class="btn btn-danger" id="btn-confirm-delete">
+                    <span>🗑️</span> Delete Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Client-Side Admin Interaction Logic -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // -------------------------------------------------------------------------
+    // 1. Modal Helper Handlers
+    // -------------------------------------------------------------------------
+    function showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    function hideModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    // Dismiss buttons
+    document.querySelectorAll('[data-dismiss]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-dismiss');
+            hideModal(targetId);
+        });
+    });
+
+    // Close on backdrop click
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) hideModal(modal.id);
+        });
+    });
+
+    // Trigger Create Product
+    const openCreateBtn = document.getElementById('btn-open-create-product-modal');
+    if (openCreateBtn) openCreateBtn.addEventListener('click', () => showModal('modal-create-product'));
+
+    // Trigger Create Category
+    const openCatBtn1 = document.getElementById('btn-open-category-modal');
+    const openCatBtn2 = document.getElementById('btn-open-category-modal-2');
+    if (openCatBtn1) openCatBtn1.addEventListener('click', () => showModal('modal-create-category'));
+    if (openCatBtn2) openCatBtn2.addEventListener('click', () => showModal('modal-create-category'));
+
+    // -------------------------------------------------------------------------
+    // 2. Edit Product Modal Populator
+    // -------------------------------------------------------------------------
+    const editModal = document.getElementById('modal-edit-product');
+    const editForm = document.getElementById('form-edit-product');
+
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            const catId = btn.getAttribute('data-category-id');
+            const price = btn.getAttribute('data-price');
+            const stock = btn.getAttribute('data-stock');
+            const desc = btn.getAttribute('data-description');
+            const img = btn.getAttribute('data-image');
+            const rating = btn.getAttribute('data-rating');
+            const active = btn.getAttribute('data-active') === '1';
+
+            if (editForm) {
+                editForm.action = `/admin/products/${id}/edit`;
+                document.getElementById('edit-product-id-label').textContent = `(#${id})`;
+                document.getElementById('edit-name').value = name || '';
+                document.getElementById('edit-category').value = catId || '';
+                document.getElementById('edit-price').value = price || '';
+                document.getElementById('edit-stock').value = stock || '';
+                document.getElementById('edit-desc').value = desc || '';
+                document.getElementById('edit-image-url').value = img || '';
+                document.getElementById('edit-rating').value = rating || '';
+                document.getElementById('edit-active').checked = active;
+                showModal('modal-edit-product');
+            }
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // 3. Delete Product Confirmation Populator
+    // -------------------------------------------------------------------------
+    const deleteForm = document.getElementById('form-delete-product');
+    const deleteName = document.getElementById('delete-product-name');
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            if (deleteForm && deleteName) {
+                deleteForm.action = `/admin/products/${id}/delete`;
+                deleteName.textContent = `"${name}" (#${id})`;
+                showModal('modal-delete-confirm');
+            }
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // 4. Live Table Search & Filtering Logic
+    // -------------------------------------------------------------------------
+    const searchInput = document.getElementById('admin-catalog-search');
+    const clearBtn = document.getElementById('admin-search-clear');
+    const catFilter = document.getElementById('filter-category-select');
+    const statusFilter = document.getElementById('filter-status-select');
+    const stockFilter = document.getElementById('filter-stock-select');
+    const rows = document.querySelectorAll('#admin-products-tbody .product-row');
+    const noResults = document.getElementById('no-filter-results');
+    const resetBtn = document.getElementById('btn-reset-filters');
+
+    function applyFilters() {
+        const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+        const selectedCat = catFilter ? catFilter.value : '';
+        const selectedStatus = statusFilter ? statusFilter.value : '';
+        const selectedStock = stockFilter ? stockFilter.value : '';
+
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', query.length === 0);
+        }
+
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            const id = row.getAttribute('data-id') || '';
+            const cat = row.getAttribute('data-category') || '';
+            const status = row.getAttribute('data-status') || '';
+            const stockStatus = row.getAttribute('data-stock-status') || '';
+
+            const matchesSearch = !query || name.includes(query) || id === query;
+            const matchesCat = !selectedCat || cat === selectedCat;
+            const matchesStatus = !selectedStatus || status === selectedStatus;
+            const matchesStock = !selectedStock || stockStatus === selectedStock;
+
+            const isVisible = matchesSearch && matchesCat && matchesStatus && matchesStock;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+        });
+
+        if (noResults) {
+            noResults.classList.toggle('hidden', visibleCount > 0 || rows.length === 0);
+        }
+    }
+
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            applyFilters();
+        });
+    }
+    if (catFilter) catFilter.addEventListener('change', applyFilters);
+    if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+    if (stockFilter) stockFilter.addEventListener('change', applyFilters);
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (catFilter) catFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (stockFilter) stockFilter.value = '';
+            applyFilters();
+        });
+    }
+});
+</script>
+{% endblock %}

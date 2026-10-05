@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block title %}Shop Products — Catalog &amp; Discovery — ShopEase{% endblock %}
+
+{% block content %}
+<div class="catalog-page-wrapper">
+    <!-- Catalog Hero / Breadcrumb Strip -->
+    <div class="catalog-hero-strip">
+        <div class="container catalog-hero-container">
+            <div class="catalog-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active">Products</span>
+                {% if initial_category %}
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active" id="breadcrumb-category-name">{{ initial_category }}</span>
+                {% endif %}
+            </div>
+            <div class="catalog-hero-text">
+                <h1 class="catalog-title">Products</h1>
+                <p class="catalog-subtitle">Explore our collection of authentic electronics, apparel, timepieces, footwear, and lifestyle essentials.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container catalog-layout-container">
+        <!-- Sidebar Filter Drawer / Column -->
+        <aside class="catalog-sidebar" id="catalog-sidebar">
+            <div class="sidebar-header">
+                <h3 class="sidebar-title">
+                    <span>⚡</span> Filters
+                </h3>
+                <button type="button" class="btn-clear-filters clear-all-filters-btn" id="btn-sidebar-reset">Clear All</button>
+            </div>
+
+            <!-- 1. Category Filter -->
+            <div class="filter-widget">
+                <h4 class="widget-title">Categories</h4>
+                <ul class="widget-category-list category-filter-list" id="sidebar-category-list">
+                    <li class="category-item">
+                        <button type="button" class="category-filter-btn {{ 'active' if not initial_category else '' }}" data-category="">
+                            <span class="cat-label">All Categories</span>
+                            <span class="cat-count" id="count-all-categories">...</span>
+                        </button>
+                    </li>
+                    {% for cat in categories %}
+                    <li class="category-item">
+                        <button type="button" class="category-filter-btn {{ 'active' if initial_category == cat.name else '' }}" data-category="{{ cat.name }}">
+                            <span class="cat-label">{{ cat.name }}</span>
+                            <span class="cat-count">{{ cat.product_count }}</span>
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- 2. Price Range Filter -->
+            <div class="filter-widget">
+                <h4 class="widget-title">Price Range</h4>
+                <div class="price-inputs-row">
+                    <div class="price-input-wrap">
+                        <span class="currency-symbol">$</span>
+                        <input type="number" min="0" step="1" id="filter-price-min" class="price-field" placeholder="Min">
+                    </div>
+                    <span class="price-to">to</span>
+                    <div class="price-input-wrap">
+                        <span class="currency-symbol">$</span>
+                        <input type="number" min="0" step="1" id="filter-price-max" class="price-field" placeholder="Max">
+                    </div>
+                    <button type="button" class="btn-apply-price" id="btn-apply-price" title="Apply price range">Go</button>
+                </div>
+
+                <div class="price-preset-chips">
+                    <button type="button" class="price-chip" data-min="0" data-max="50">Under $50</button>
+                    <button type="button" class="price-chip" data-min="50" data-max="100">$50 to $100</button>
+                    <button type="button" class="price-chip" data-min="100" data-max="200">$100 to $200</button>
+                    <button type="button" class="price-chip" data-min="200" data-max="">$200 &amp; Above</button>
+                </div>
+            </div>
+
+            <!-- 3. Availability Filter -->
+            <div class="filter-widget">
+                <h4 class="widget-title">Availability</h4>
+                <label class="custom-checkbox-label">
+                    <input type="checkbox" id="filter-in-stock" value="1">
+                    <span class="checkbox-box"></span>
+                    <span class="checkbox-text">In Stock Only</span>
+                </label>
+            </div>
+
+            <!-- 4. Customer Rating Filter -->
+            <div class="filter-widget">
+                <h4 class="widget-title">Customer Rating</h4>
+                <div class="rating-filter-options">
+                    <label class="rating-radio-label">
+                        <input type="radio" name="rating-filter" value="" checked>
+                        <span class="rating-radio-text">All Ratings</span>
+                    </label>
+                    <label class="rating-radio-label">
+                        <input type="radio" name="rating-filter" value="4.5">
+                        <span class="rating-stars">★★★★★</span>
+                        <span class="rating-score">4.5 &amp; up</span>
+                    </label>
+                    <label class="rating-radio-label">
+                        <input type="radio" name="rating-filter" value="4.0">
+                        <span class="rating-stars">★★★★☆</span>
+                        <span class="rating-score">4.0 &amp; up</span>
+                    </label>
+                    <label class="rating-radio-label">
+                        <input type="radio" name="rating-filter" value="3.0">
+                        <span class="rating-stars">★★★☆☆</span>
+                        <span class="rating-score">3.0 &amp; up</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Product Content Area -->
+        <main class="catalog-main" id="catalog-main">
+            <!-- Catalog Search & Sort Header Bar -->
+            <div class="catalog-toolbar-card">
+                <!-- Search Box -->
+                <div class="catalog-search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        id="catalog-search-input" 
+                        class="catalog-search-field" 
+                        placeholder="Search products..." 
+                        value="{{ initial_search if initial_search else '' }}"
+                        autocomplete="off"
+                    >
+                    <button type="button" class="btn-clear-search {{ 'hidden' if not initial_search else '' }}" id="btn-catalog-clear-search" aria-label="Clear search query">✕</button>
+                </div>
+
+                <!-- Right Sorting & Mobile Filter Toggle -->
+                <div class="catalog-toolbar-right">
+                    <!-- Mobile Filter Toggle Button -->
+                    <button type="button" class="btn-mobile-filter-toggle" id="btn-mobile-filter-toggle">
+                        <span>⚡</span> Filters
+                    </button>
+
+                    <!-- Results Count Indicator -->
+                    <div class="catalog-results-count" id="catalog-results-count">
+                        Loading products...
+                    </div>
+
+                    <!-- Sort Select -->
+                    <div class="catalog-sort-wrapper">
+                        <label for="catalog-sort-select" class="sort-label">Sort By:</label>
+                        <select id="catalog-sort-select" class="catalog-sort-select">
+                            <option value="newest" {{ 'selected' if initial_sort == 'newest' else '' }}>Newest Arrivals</option>
+                            <option value="price_asc" {{ 'selected' if initial_sort == 'price_asc' else '' }}>Price: Low to High</option>
+                            <option value="price_desc" {{ 'selected' if initial_sort == 'price_desc' else '' }}>Price: High to Low</option>
+                            <option value="rating_desc" {{ 'selected' if initial_sort == 'rating_desc' else '' }}>Highest Rated</option>
+                            <option value="alpha" {{ 'selected' if initial_sort == 'alpha' else '' }}>Product Name: A to Z</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Filter Badges Bar -->
+            <div class="active-filters-bar hidden" id="active-filters-bar">
+                <span class="active-filters-label">Active Filters:</span>
+                <div class="active-filter-chips" id="active-filter-chips">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+                <button type="button" class="btn-clear-all-chips" id="btn-clear-all-chips">Reset All</button>
+            </div>
+
+            <!-- Product Grid -->
+            <div class="catalog-product-grid" id="catalog-product-grid">
+                <!-- Populated dynamically via fetch('/api/products') -->
+            </div>
+
+            <!-- Empty Search Results State -->
+            <div class="catalog-empty-view hidden" id="catalog-empty-view">
+                <div class="empty-icon-wrap">🔍</div>
+                <h3>No Matching Products Found</h3>
+                <p>We couldn't find any products matching your current search criteria and filters.</p>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-empty-reset">
+                    <span>🔄</span> Clear All Filters
+                </button>
+            </div>
+
+            <!-- API Error State -->
+            <div class="catalog-error-view hidden" id="catalog-error-view">
+                <div class="empty-icon-wrap error-icon">⚠️</div>
+                <h3>Could Not Load Products</h3>
+                <p id="catalog-error-message">Unable to contact the server API. Please check your network connection.</p>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-retry-fetch">
+                    <span>🔁</span> Retry Loading
+                </button>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- Client-Side Product Catalog Controller (Module 4)                       -->
+<!-- ======================================================================= -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // -------------------------------------------------------------------------
+    // 1. Catalog State
+    // -------------------------------------------------------------------------
+    const CatalogState = {
+        category: '{{ initial_category|e }}' || '',
+        search: '{{ initial_search|e }}' || '',
+        minPrice: '',
+        maxPrice: '',
+        inStock: false,
+        minRating: '',
+        sortBy: '{{ initial_sort|e }}' || 'newest',
+        isLoading: false
+    };
+
+    const gridEl = document.getElementById('catalog-product-grid');
+    const emptyEl = document.getElementById('catalog-empty-view');
+    const errorEl = document.getElementById('catalog-error-view');
+    const countEl = document.getElementById('catalog-results-count');
+    const searchInput = document.getElementById('catalog-search-input');
+    const clearSearchBtn = document.getElementById('btn-catalog-clear-search');
+    const sortSelect = document.getElementById('catalog-sort-select');
+    const activeFiltersBar = document.getElementById('active-filters-bar');
+    const activeChipsContainer = document.getElementById('active-filter-chips');
+    const countAllCategories = document.getElementById('count-all-categories');
+
+    // -------------------------------------------------------------------------
+    // 2. Render Loading Skeletons
+    // -------------------------------------------------------------------------
+    function renderSkeletons() {
+        gridEl.innerHTML = Array(6).fill(0).map(() => `
+            <div class="product-card skeleton-card">
+                <div class="skeleton-box skeleton-media"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-box skeleton-line" style="width: 35%;"></div>
+                    <div class="skeleton-box skeleton-line" style="width: 80%; height: 1.2rem;"></div>
+                    <div class="skeleton-box skeleton-line" style="width: 45%;"></div>
+                    <div class="skeleton-box skeleton-line" style="width: 50%; height: 1.4rem;"></div>
+                    <div class="skeleton-box skeleton-btn"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Fetch Products from API with Active Filters
+    // -------------------------------------------------------------------------
+    let debounceTimer = null;
+
+    async function loadCatalogProducts() {
+        CatalogState.isLoading = true;
+        emptyEl.classList.add('hidden');
+        errorEl.classList.add('hidden');
+        renderSkeletons();
+        updateActiveChips();
+
+        const params = new URLSearchParams();
+        if (CatalogState.category) params.append('category', CatalogState.category);
+        if (CatalogState.search) params.append('q', CatalogState.search);
+        if (CatalogState.minPrice) params.append('min_price', CatalogState.minPrice);
+        if (CatalogState.maxPrice) params.append('max_price', CatalogState.maxPrice);
+        if (CatalogState.inStock) params.append('in_stock', 'true');
+        if (CatalogState.minRating) params.append('min_rating', CatalogState.minRating);
+        if (CatalogState.sortBy) params.append('sort_by', CatalogState.sortBy);
+
+        try {
+            const endpoint = `/api/products?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            CatalogState.isLoading = false;
+
+            if (data.success && Array.isArray(data.data)) {
+                renderProductGrid(data.data);
+            } else {
+                showError('Received invalid data format from product server.');
+            }
+        } catch (err) {
+            CatalogState.isLoading = false;
+            showError(`Failed to load catalog: ${err.message}`);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. Render Product Cards
+    // -------------------------------------------------------------------------
+    function renderProductGrid(products) {
+        if (countAllCategories && !countAllCategories.dataset.loaded) {
+            countAllCategories.textContent = products.length;
+            countAllCategories.dataset.loaded = 'true';
+        }
+
+        if (countEl) {
+            countEl.innerHTML = `Showing <strong>${products.length}</strong> product${products.length === 1 ? '' : 's'}`;
+        }
+
+        if (products.length === 0) {
+            gridEl.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        emptyEl.classList.add('hidden');
+
+        gridEl.innerHTML = products.map(product => {
+            const isOut = product.stock <= 0;
+            const isLow = !isOut && product.stock <= 5;
+            
+            let stockBadge = '<span class="stock-badge in-stock">✓ In Stock</span>';
+            if (isOut) stockBadge = '<span class="stock-badge out-of-stock">✕ Out of Stock</span>';
+            else if (isLow) stockBadge = `<span class="stock-badge low-stock">⚡ Only ${product.stock} Left</span>`;
+
+            // Media rendering
+            let mediaHtml = '<span class="product-emoji">📦</span>';
+            if (product.image && product.image.startsWith('/static/')) {
+                mediaHtml = `<img src="${product.image}" alt="${product.name}" class="product-card-img" loading="lazy">`;
+            } else if (product.image && !product.image.endsWith('.png')) {
+                mediaHtml = `<span class="product-emoji">${product.image}</span>`;
+            }
+
+            // Wishlist state check
+            const inWishlist = AppState && AppState.wishlist && AppState.wishlist.includes(product.id);
+
+            return `
+                <div class="product-card" data-id="${product.id}">
+                    <div class="product-media-wrap">
+                        <a href="/products/${product.id}" class="product-media-link" aria-label="View details for ${product.name}">
+                            ${mediaHtml}
+                        </a>
+                        <button type="button" class="wishlist-toggle-btn ${inWishlist ? 'active' : ''}" data-id="${product.id}" data-name="${product.name}" aria-label="Save to Wishlist">
+                            <span class="heart-icon">${inWishlist ? '❤️' : '🤍'}</span>
+                        </button>
+                        <span class="product-card-category-tag">${product.category_name || 'General'}</span>
+                    </div>
+
+                    <div class="product-body">
+                        <div class="product-rating-row">
+                            <span class="stars">★</span>
+                            <span class="score">${Number(product.rating).toFixed(1)}</span>
+                            <span class="rating-count">(Verified)</span>
+                        </div>
+
+                        <h3 class="product-title">
+                            <a href="/products/${product.id}" title="${product.name}">${product.name}</a>
+                        </h3>
+
+                        <p class="product-snippet">
+                            ${product.description ? (product.description.slice(0, 75) + '...') : ''}
+                        </p>
+
+                        <div class="product-card-footer">
+                            <div class="price-stock-box">
+                                <span class="product-price">$${Number(product.price).toFixed(2)}</span>
+                                ${stockBadge}
+                            </div>
+
+                            <a href="/products/${product.id}" class="btn btn-outline btn-sm btn-view-details" aria-label="View details for ${product.name}">
+                                <span>View Details</span>
+                                <span class="btn-arrow">→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Bind wishlist listeners
+        gridEl.querySelectorAll('.wishlist-toggle-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                if (window.AppState && AppState.toggleWishlist) {
+                    const added = AppState.toggleWishlist({ id, name });
+                    btn.classList.toggle('active', added);
+                    btn.querySelector('.heart-icon').textContent = added ? '❤️' : '🤍';
+                }
+            };
+        });
+    }
+
+    function showError(msg) {
+        gridEl.innerHTML = '';
+        if (countEl) countEl.textContent = 'Error loading items';
+        const msgEl = document.getElementById('catalog-error-message');
+        if (msgEl) msgEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Active Filters Chips Bar
+    // -------------------------------------------------------------------------
+    function updateActiveChips() {
+        const chips = [];
+
+        if (CatalogState.category) {
+            chips.push({ key: 'category', label: `Category: ${CatalogState.category}` });
+        }
+        if (CatalogState.search) {
+            chips.push({ key: 'search', label: `Search: "${CatalogState.search}"` });
+        }
+        if (CatalogState.minPrice || CatalogState.maxPrice) {
+            const min = CatalogState.minPrice ? `$${CatalogState.minPrice}` : '$0';
+            const max = CatalogState.maxPrice ? `$${CatalogState.maxPrice}` : 'Any';
+            chips.push({ key: 'price', label: `Price: ${min} – ${max}` });
+        }
+        if (CatalogState.inStock) {
+            chips.push({ key: 'inStock', label: 'In Stock Only' });
+        }
+        if (CatalogState.minRating) {
+            chips.push({ key: 'rating', label: `★ ${CatalogState.minRating}+ Rating` });
+        }
+
+        if (chips.length > 0) {
+            activeFiltersBar.classList.remove('hidden');
+            activeChipsContainer.innerHTML = chips.map(chip => `
+                <button type="button" class="filter-chip" data-remove="${chip.key}">
+                    <span>${chip.label}</span>
+                    <span class="chip-x">✕</span>
+                </button>
+            `).join('');
+
+            activeChipsContainer.querySelectorAll('.filter-chip').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const key = btn.getAttribute('data-remove');
+                    if (key === 'category') setCategory('');
+                    else if (key === 'search') {
+                        CatalogState.search = '';
+                        if (searchInput) searchInput.value = '';
+                        if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+                    } else if (key === 'price') {
+                        CatalogState.minPrice = '';
+                        CatalogState.maxPrice = '';
+                        document.getElementById('filter-price-min').value = '';
+                        document.getElementById('filter-price-max').value = '';
+                    } else if (key === 'inStock') {
+                        CatalogState.inStock = false;
+                        document.getElementById('filter-in-stock').checked = false;
+                    } else if (key === 'rating') {
+                        CatalogState.minRating = '';
+                        const allRadio = document.querySelector('input[name="rating-filter"][value=""]');
+                        if (allRadio) allRadio.checked = true;
+                    }
+                    loadCatalogProducts();
+                });
+            });
+        } else {
+            activeFiltersBar.classList.add('hidden');
+            activeChipsContainer.innerHTML = '';
+        }
+    }
+
+    function resetAllFilters() {
+        CatalogState.category = '';
+        CatalogState.search = '';
+        CatalogState.minPrice = '';
+        CatalogState.maxPrice = '';
+        CatalogState.inStock = false;
+        CatalogState.minRating = '';
+        CatalogState.sortBy = 'newest';
+
+        if (searchInput) searchInput.value = '';
+        if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+        if (sortSelect) sortSelect.value = 'newest';
+        document.getElementById('filter-price-min').value = '';
+        document.getElementById('filter-price-max').value = '';
+        document.getElementById('filter-in-stock').checked = false;
+        const allRadio = document.querySelector('input[name="rating-filter"][value=""]');
+        if (allRadio) allRadio.checked = true;
+
+        document.querySelectorAll('.category-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-category') === '');
+        });
+
+        loadCatalogProducts();
+    }
+
+    function setCategory(catName) {
+        CatalogState.category = catName;
+        document.querySelectorAll('.category-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-category') === catName);
+        });
+        loadCatalogProducts();
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Event Handlers
+    // -------------------------------------------------------------------------
+    // Category button clicks
+    document.querySelectorAll('.category-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cat = btn.getAttribute('data-category') || '';
+            setCategory(cat);
+        });
+    });
+
+    // Search Input with Debounce
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const q = searchInput.value.trim();
+            if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', q.length === 0);
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                CatalogState.search = q;
+                loadCatalogProducts();
+            }, 300);
+        });
+    }
+
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchBtn.classList.add('hidden');
+            CatalogState.search = '';
+            loadCatalogProducts();
+        });
+    }
+
+    // Sort Dropdown
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+            CatalogState.sortBy = sortSelect.value;
+            loadCatalogProducts();
+        });
+    }
+
+    // Price Filter Submit
+    const btnApplyPrice = document.getElementById('btn-apply-price');
+    if (btnApplyPrice) {
+        btnApplyPrice.addEventListener('click', () => {
+            CatalogState.minPrice = document.getElementById('filter-price-min').value.trim();
+            CatalogState.maxPrice = document.getElementById('filter-price-max').value.trim();
+            loadCatalogProducts();
+        });
+    }
+
+    // Price Preset Chips
+    document.querySelectorAll('.price-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const min = chip.getAttribute('data-min');
+            const max = chip.getAttribute('data-max');
+            document.getElementById('filter-price-min').value = min || '';
+            document.getElementById('filter-price-max').value = max || '';
+            CatalogState.minPrice = min || '';
+            CatalogState.maxPrice = max || '';
+            loadCatalogProducts();
+        });
+    });
+
+    // In-Stock Toggle
+    const inStockCheck = document.getElementById('filter-in-stock');
+    if (inStockCheck) {
+        inStockCheck.addEventListener('change', () => {
+            CatalogState.inStock = inStockCheck.checked;
+            loadCatalogProducts();
+        });
+    }
+
+    // Rating Filter Radios
+    document.querySelectorAll('input[name="rating-filter"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            CatalogState.minRating = radio.value;
+            loadCatalogProducts();
+        });
+    });
+
+    // Reset Buttons
+    const btnSidebarReset = document.getElementById('btn-sidebar-reset');
+    const btnClearAllChips = document.getElementById('btn-clear-all-chips');
+    const btnEmptyReset = document.getElementById('btn-empty-reset');
+    const btnRetry = document.getElementById('btn-retry-fetch');
+
+    if (btnSidebarReset) btnSidebarReset.addEventListener('click', resetAllFilters);
+    if (btnClearAllChips) btnClearAllChips.addEventListener('click', resetAllFilters);
+    if (btnEmptyReset) btnEmptyReset.addEventListener('click', resetAllFilters);
+    if (btnRetry) btnRetry.addEventListener('click', loadCatalogProducts);
+
+    // Mobile Sidebar Toggle
+    const mobileFilterToggle = document.getElementById('btn-mobile-filter-toggle');
+    const sidebar = document.getElementById('catalog-sidebar');
+    if (mobileFilterToggle && sidebar) {
+        mobileFilterToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. Initial Catalog Load
+    // -------------------------------------------------------------------------
+    loadCatalogProducts();
+});
+</script>
+{% endblock %}

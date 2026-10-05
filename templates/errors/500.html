@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Internal Server Error | ShopEase{% endblock %}
+
+
+{% block content %}
+<section class="error-page-section">
+    <div class="container error-container">
+        <div class="error-card">
+            <span class="error-badge-large text-danger">500</span>
+            <div class="error-icon">🛠️</div>
+            <h1 class="error-title">Internal Server Error</h1>
+            <p class="error-message">
+                {{ message if message else "Our technical team has been notified and is working to resolve this issue. Please try refreshing the page in a few moments." }}
+            </p>
+            <div class="error-actions">
+                <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                    <span>Return to Home</span>
+                    <span>→</span>
+                </a>
+                <button onclick="window.location.reload()" class="btn btn-secondary">
+                    <span>Try Again</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

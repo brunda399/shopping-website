@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ShopEase — Premium online shopping destination. Discover trending electronics, fashion, footwear, watches, and home essentials with fast shipping and secure checkout.">
+    <title>{% block title %}ShopEase — Modern Online E-Commerce Experience{% endblock %}</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Top Announcement Bar -->
+    <div class="announcement-bar" id="announcement-bar">
+        <div class="container announcement-content">
+            <div class="announcement-text">
+                <span class="announcement-badge">FLASH SALE</span>
+                <span>Get up to <strong>50% OFF</strong> select categories + <strong>FREE Shipping</strong> over $50! Use code: <strong>EASE50</strong></span>
+            </div>
+            <div class="announcement-utils">
+                <a href="#contact-section" class="util-link">24/7 Support</a>
+                <span class="util-divider">|</span>
+                <a href="#order-tracking" class="util-link" id="btn-track-order">Track Order</a>
+                <span class="util-divider">|</span>
+                <span class="currency-badge">USD ($)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="site-header" id="site-header">
+        <!-- Main Navbar -->
+        <div class="navbar-main">
+            <div class="container navbar-container">
+                <!-- Mobile Hamburger Toggle -->
+                <button class="nav-toggle" id="nav-toggle-btn" aria-label="Open mobile navigation menu" aria-expanded="false" aria-controls="mobile-drawer">
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                </button>
+
+                <!-- Brand Logo -->
+                <a href="{{ url_for('main.index') }}" class="nav-brand" id="brand-logo" aria-label="ShopEase Home">
+                    <div class="brand-logo-icon">
+                        <span class="logo-bag">🛍️</span>
+                    </div>
+                    <span class="brand-text">Shop<span class="brand-accent">Ease</span></span>
+                </a>
+
+                <!-- Search Bar UI Component with live suggestions dropdown -->
+                <div class="nav-search-wrapper" id="search-wrapper">
+                    <form class="nav-search-form" id="search-form" role="search" onsubmit="return false;">
+                        <div class="search-category-select-wrapper">
+                            <select id="search-category-select" class="search-category-select" aria-label="Filter by category">
+                                <option value="">All Categories</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Fashion">Fashion</option>
+                                <option value="Footwear">Footwear</option>
+                                <option value="Watches">Watches</option>
+                                <option value="Home & Living">Home & Living</option>
+                                <option value="Accessories">Accessories</option>
+                            </select>
+                            <span class="select-chevron">▾</span>
+                        </div>
+                        <div class="search-input-container">
+                            <span class="search-icon" aria-hidden="true">🔍</span>
+                            <input 
+                                type="text" 
+                                id="site-search-input" 
+                                class="search-input" 
+                                placeholder="Search products, brands, and categories..." 
+                                autocomplete="off"
+                                aria-label="Search products"
+                                aria-expanded="false"
+                                aria-controls="search-results-dropdown"
+                            >
+                            <button type="button" class="search-clear-btn hidden" id="search-clear-btn" aria-label="Clear search">✕</button>
+                        </div>
+                        <button type="submit" class="search-submit-btn" id="search-submit-btn" aria-label="Submit search">
+                            <span>Search</span>
+                        </button>
+                    </form>
+
+                    <!-- Instant Search Results Dropdown -->
+                    <div class="search-dropdown hidden" id="search-results-dropdown" role="region" aria-label="Search suggestions">
+                        <div class="search-dropdown-header">
+                            <span class="dropdown-header-title" id="dropdown-status">Matching Products</span>
+                            <span class="dropdown-results-count" id="search-results-count">0 found</span>
+                        </div>
+                        <div class="search-dropdown-list" id="search-dropdown-list">
+                            <!-- Populated dynamically by main.js -->
+                        </div>
+                        <div class="search-dropdown-footer">
+                            <a href="#products-section" class="view-all-link" id="view-all-search-btn">View All Matching Products →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Utilities -->
+                <div class="nav-actions">
+                    <!-- Wishlist Trigger -->
+                    <button class="action-btn" id="nav-wishlist-btn" title="View Wishlist" aria-label="Wishlist">
+                        <span class="action-icon">🤍</span>
+                        <span class="badge" id="wishlist-badge">0</span>
+                        <span class="action-label">Wishlist</span>
+                    </button>
+
+                    <!-- Cart Trigger (Opens Cart Slide-out Drawer) -->
+                    <button class="action-btn action-cart-btn" id="nav-cart-btn" title="View Cart Drawer" aria-label="Shopping Cart">
+                        <div class="cart-icon-wrapper">
+                            <span class="action-icon">🛒</span>
+                            <span class="badge badge-primary" id="cart-badge">0</span>
+                        </div>
+                        <div class="cart-info-text">
+                            <span class="cart-title">Cart</span>
+                            <span class="cart-total-preview" id="cart-total-preview">$0.00</span>
+                        </div>
+                    </button>
+
+                    <!-- User Authentication Hub -->
+                    {% if current_user %}
+                    <div class="user-dropdown-container" id="user-dropdown-container">
+                        <button class="nav-user-btn" id="nav-user-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                            <span class="user-avatar-mini">{{ current_user.name[:1]|upper }}</span>
+                            <span class="user-nav-name">{{ current_user.name.split(' ')[0] }}</span>
+                            <span class="dropdown-chevron">▾</span>
+                        </button>
+                        <div class="user-dropdown-menu hidden" id="user-dropdown-menu" role="menu">
+                            <div class="dropdown-user-header">
+                                <strong>{{ current_user.name }}</strong>
+                                <span class="dropdown-user-email">{{ current_user.email }}</span>
+                                <span class="role-pill role-{{ current_user.role|lower }}">{{ current_user.role }}</span>
+                            </div>
+                            <ul class="dropdown-menu-list">
+                                <li>
+                                    <a href="{{ url_for('main.profile') }}" class="dropdown-item">
+                                        <span>👤</span> My Profile &amp; Account
+                                    </a>
+                                </li>
+                                {% if current_user.is_admin %}
+                                <li>
+                                    <a href="{{ url_for('admin.products_dashboard') }}" class="dropdown-item">
+                                        <span>🛡️</span> Admin Dashboard
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <a href="javascript:void(0)" class="dropdown-item" onclick="openCartDrawer();">
+                                        <span>🛒</span> Shopping Bag
+                                    </a>
+                                </li>
+                                <li class="dropdown-divider"></li>
+                                <li>
+                                    <a href="{{ url_for('main.logout') }}" class="dropdown-item text-danger">
+                                        <span>🚪</span> Sign Out
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('main.login') }}" class="btn btn-outline nav-account-btn" id="nav-login-btn">
+                        <span class="account-icon">👤</span>
+                        <span>Sign In</span>
+                    </a>
+                    <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-sm nav-register-btn" id="nav-register-btn">
+                        <span>Sign Up</span>
+                    </a>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Sub-Navbar: Category Quick Navigation Strip -->
+        <nav class="sub-nav" aria-label="Categories navigation">
+            <div class="container sub-nav-container">
+                <ul class="sub-nav-list" id="sub-nav-categories">
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link active" data-category="">
+                            <span class="nav-icon">⚡</span> All Products
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Electronics">
+                            <span class="nav-icon">🎧</span> Electronics
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Fashion">
+                            <span class="nav-icon">🧥</span> Fashion
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Footwear">
+                            <span class="nav-icon">👟</span> Footwear
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Watches">
+                            <span class="nav-icon">⌚</span> Watches
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Home & Living">
+                            <span class="nav-icon">🏠</span> Home &amp; Living
+                        </button>
+                    </li>
+                    <li class="sub-nav-item">
+                        <button class="sub-nav-link" data-category="Accessories">
+                            <span class="nav-icon">🎒</span> Accessories
+                        </button>
+                    </li>
+                    <li class="sub-nav-item deals-highlight">
+                        <a href="#deals-section" class="sub-nav-link special-deal">
+                            <span class="nav-icon">🔥</span> Daily Deals
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-drawer-backdrop" id="mobile-drawer-backdrop" aria-hidden="true"></div>
+    <aside class="mobile-drawer" id="mobile-drawer" aria-label="Mobile Navigation" aria-hidden="true">
+        <div class="drawer-header">
+            <div class="nav-brand">
+                <span class="brand-logo-icon">🛍️</span>
+                <span class="brand-text">Shop<span class="brand-accent">Ease</span></span>
+            </div>
+            <button class="drawer-close-btn" id="mobile-drawer-close" aria-label="Close mobile menu">✕</button>
+        </div>
+
+        <div class="mobile-drawer-content">
+            <div class="mobile-search-box">
+                <input type="text" id="mobile-search-input" class="mobile-search-field" placeholder="Search products...">
+                <button class="mobile-search-btn" id="mobile-search-submit">🔍</button>
+            </div>
+
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Shop Categories</h4>
+                <ul class="mobile-nav-list">
+                    <li><button class="mobile-category-link" data-category="">⚡ All Products</button></li>
+                    <li><button class="mobile-category-link" data-category="Electronics">🎧 Electronics</button></li>
+                    <li><button class="mobile-category-link" data-category="Fashion">🧥 Fashion &amp; Apparel</button></li>
+                    <li><button class="mobile-category-link" data-category="Footwear">👟 Footwear &amp; Sneakers</button></li>
+                    <li><button class="mobile-category-link" data-category="Watches">⌚ Watches &amp; Timepieces</button></li>
+                    <li><button class="mobile-category-link" data-category="Home & Living">🏠 Home &amp; Living</button></li>
+                    <li><button class="mobile-category-link" data-category="Accessories">🎒 Bags &amp; Accessories</button></li>
+                </ul>
+            </div>
+
+            <div class="drawer-section">
+                <h4 class="drawer-section-title">Account &amp; Orders</h4>
+                <ul class="mobile-nav-list">
+                    {% if current_user %}
+                    <li><a href="{{ url_for('main.profile') }}" class="mobile-nav-link">👤 My Profile ({{ current_user.name }})</a></li>
+                    {% if current_user.is_admin %}
+                    <li><a href="{{ url_for('admin.products_dashboard') }}" class="mobile-nav-link">🛡️ Admin Dashboard</a></li>
+                    {% endif %}
+                    <li><a href="#order-tracking" class="mobile-nav-link">📦 Track My Order</a></li>
+                    <li><a href="#wishlist" class="mobile-nav-link" id="mobile-wishlist-link">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
+                    <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-cart-link" onclick="closeMobileDrawer(); openCartDrawer();">🛒 Shopping Bag (<span class="mobile-cart-count">0</span>)</a></li>
+                    <li class="mobile-divider"></li>
+                    <li><a href="{{ url_for('main.logout') }}" class="mobile-nav-link text-danger">🚪 Sign Out</a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('main.login') }}" class="mobile-nav-link" id="mobile-signin-link">👤 Sign In</a></li>
+                    <li><a href="{{ url_for('main.register') }}" class="mobile-nav-link" id="mobile-signup-link">✨ Create Free Account</a></li>
+                    <li><a href="#order-tracking" class="mobile-nav-link">📦 Track My Order</a></li>
+                    <li><a href="#wishlist" class="mobile-nav-link" id="mobile-wishlist-link">🤍 My Wishlist (<span class="mobile-wishlist-count">0</span>)</a></li>
+                    <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-cart-link" onclick="closeMobileDrawer(); openCartDrawer();">🛒 Shopping Bag (<span class="mobile-cart-count">0</span>)</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="mobile-drawer-footer">
+            <div class="api-pill-mobile">
+                <span class="status-indicator online"></span>
+                <span>System Online (Module 2 Active)</span>
+            </div>
+        </div>
+    </aside>
+
+
+    <!-- Slide-Over Shopping Cart Drawer Component -->
+    <div class="cart-drawer-backdrop" id="cart-drawer-backdrop" aria-hidden="true"></div>
+    <aside class="cart-drawer" id="cart-drawer" role="dialog" aria-label="Shopping Cart" aria-hidden="true">
+        <div class="cart-drawer-header">
+            <div class="cart-header-title">
+                <h3>Shopping Bag</h3>
+                <span class="cart-item-count-badge" id="cart-drawer-badge">0 items</span>
+            </div>
+            <button class="drawer-close-btn" id="cart-drawer-close" aria-label="Close cart drawer">✕</button>
+        </div>
+
+        <div class="cart-drawer-body" id="cart-drawer-body">
+            <!-- Populated dynamically by main.js -->
+            <div class="cart-empty-state" id="cart-empty-view">
+                <div class="empty-icon-wrap">🛒</div>
+                <h4>Your shopping bag is empty</h4>
+                <p>Explore our curated collections and add your favorite items!</p>
+                <button class="btn btn-primary btn-sm" id="cart-empty-explore-btn">Start Shopping</button>
+            </div>
+            <div class="cart-items-list hidden" id="cart-items-list">
+                <!-- Dynamically populated cart cards -->
+            </div>
+        </div>
+
+        <div class="cart-drawer-footer" id="cart-drawer-footer">
+            <!-- Coupon Code Section -->
+            <div class="coupon-section">
+                <div class="coupon-input-group">
+                    <input type="text" id="coupon-code-input" class="coupon-input" placeholder="Promo code (try 'EASE50')" uppercase>
+                    <button class="btn btn-secondary btn-sm" id="apply-coupon-btn">Apply</button>
+                </div>
+                <div class="coupon-feedback hidden" id="coupon-feedback"></div>
+            </div>
+
+            <!-- Calculation breakdown -->
+            <div class="cart-summary-breakdown">
+                <div class="summary-line">
+                    <span>Subtotal</span>
+                    <span id="drawer-subtotal">$0.00</span>
+                </div>
+                <div class="summary-line discount-line hidden" id="drawer-discount-row">
+                    <span>Discount (Promo)</span>
+                    <span class="text-success" id="drawer-discount">-$0.00</span>
+                </div>
+                <div class="summary-line">
+                    <span>Estimated Shipping</span>
+                    <span id="drawer-shipping">FREE</span>
+                </div>
+                <div class="summary-line total-line">
+                    <strong>Total Amount</strong>
+                    <strong class="total-price" id="drawer-total">$0.00</strong>
+                </div>
+            </div>
+
+            <div class="cart-footer-actions">
+                <button class="btn btn-primary btn-block" id="cart-checkout-btn">
+                    <span>Proceed to Checkout</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+                <button class="btn btn-ghost btn-sm btn-block" id="cart-continue-btn">
+                    Continue Shopping
+                </button>
+            </div>
+
+            <div class="cart-guarantee-note">
+                <span>🔒 Guaranteed Safe &amp; Secure 256-Bit SSL Checkout</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Container -->
+    <main class="site-main" id="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container global-flash-container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <span class="alert-icon">
+                                {% if category == 'error' %}⚠️
+                                {% elif category == 'success' %}✅
+                                {% elif category == 'warning' %}🔔
+                                {% else %}ℹ️{% endif %}
+                            </span>
+                            <span class="alert-text">{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+
+    <!-- Reusable Toast Notification System -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Site Footer -->
+    <footer class="site-footer" id="footer-section">
+        <div class="footer-newsletter-wrap">
+            <div class="container footer-newsletter-container">
+                <div class="newsletter-text">
+                    <span class="newsletter-badge">BE THE FIRST TO KNOW</span>
+                    <h3>Get 15% Off Your First Order</h3>
+                    <p>Subscribe to our newsletter for exclusive drops, private sale alerts, and VIP perks.</p>
+                </div>
+                <form class="newsletter-form" id="newsletter-form" onsubmit="return false;">
+                    <div class="newsletter-input-group">
+                        <input 
+                            type="email" 
+                            id="newsletter-email" 
+                            class="newsletter-input" 
+                            placeholder="Enter your email address..." 
+                            required
+                        >
+                        <button type="submit" class="btn btn-primary" id="newsletter-btn">
+                            <span>Subscribe</span>
+                        </button>
+                    </div>
+                    <small class="newsletter-disclaimer">By subscribing, you agree to our Terms of Service &amp; Privacy Policy.</small>
+                </form>
+            </div>
+        </div>
+
+        <div class="container footer-main-grid">
+            <!-- Brand Column -->
+            <div class="footer-col brand-col">
+                <div class="footer-brand">
+                    <span class="brand-logo-icon">🛍️</span>
+                    <span class="brand-text">Shop<span class="brand-accent">Ease</span></span>
+                </div>
+                <p class="footer-about-text">
+                    ShopEase is your trusted modern e-commerce hub engineered for effortless browsing, swift checkout, and curated lifestyle essentials.
+                </p>
+                <div class="footer-contact-info">
+                    <p><strong>Support:</strong> support@shopease.local</p>
+                    <p><strong>Hotline:</strong> +1 (800) 555-EASE</p>
+                    <p><strong>Hours:</strong> Mon - Sun, 24/7 Live Support</p>
+                </div>
+                <div class="footer-social-links">
+                    <a href="#twitter" class="social-icon-btn" aria-label="Twitter">𝕏</a>
+                    <a href="#instagram" class="social-icon-btn" aria-label="Instagram">📸</a>
+                    <a href="#facebook" class="social-icon-btn" aria-label="Facebook">📘</a>
+                    <a href="#github" class="social-icon-btn" aria-label="GitHub">💻</a>
+                </div>
+            </div>
+
+            <!-- Categories Column -->
+            <div class="footer-col">
+                <h4 class="footer-heading">Shop Collections</h4>
+                <ul class="footer-nav-list">
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Electronics">Electronics &amp; Audio</a></li>
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Fashion">Fashion &amp; Apparel</a></li>
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Footwear">Sneakers &amp; Footwear</a></li>
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Watches">Smartwatches &amp; Timepieces</a></li>
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Home & Living">Home, Kitchen &amp; Living</a></li>
+                    <li><a href="#products-section" class="footer-cat-link" data-cat="Accessories">Backpacks &amp; Eyewear</a></li>
+                    <li><a href="#deals-section">Daily Lightning Deals</a></li>
+                </ul>
+            </div>
+
+            <!-- Customer Service Column -->
+            <div class="footer-col" id="contact-section">
+                <h4 class="footer-heading">Customer Care</h4>
+                <ul class="footer-nav-list">
+                    <li><a href="#order-tracking" id="footer-track-order">Track My Order</a></li>
+                    <li><a href="#shipping-info">Shipping &amp; Delivery Times</a></li>
+                    <li><a href="#returns-policy">30-Day Hassle-Free Returns</a></li>
+                    <li><a href="#faq">Frequently Asked Questions</a></li>
+                    <li><a href="#help-center">Help &amp; Support Portal</a></li>
+                    <li><a href="#payment-methods">Payment Methods</a></li>
+                </ul>
+            </div>
+
+            <!-- Company & Academic Project Column -->
+            <div class="footer-col">
+                <h4 class="footer-heading">About ShopEase</h4>
+                <p class="academic-description">
+                    Developed as a professional Full-Stack E-Commerce Academic Project. Designed using clean layered 3-tier architecture, Flask modular routing, and responsive client UX.
+                </p>
+                <div class="tech-stack-badges">
+                    <span class="tech-tag">Python 3.11</span>
+                    <span class="tech-tag">Flask 3.1</span>
+                    <span class="tech-tag">SQLAlchemy</span>
+                    <span class="tech-tag">ES6 Vanilla JS</span>
+                </div>
+                <div class="api-status-card">
+                    <span class="status-indicator online" id="footer-status-dot"></span>
+                    <span id="footer-api-status">API Status: Healthy (200 OK)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Bottom Bar -->
+        <div class="footer-bottom-bar">
+            <div class="container footer-bottom-flex">
+                <p>&copy; 2026 ShopEase Inc. All rights reserved. Built for academic and demonstration purposes.</p>
+                <div class="payment-methods-icons">
+                    <span class="payment-badge" title="Visa">💳 Visa</span>
+                    <span class="payment-badge" title="Mastercard">💳 MasterCard</span>
+                    <span class="payment-badge" title="PayPal">🅿️ PayPal</span>
+                    <span class="payment-badge" title="Apple Pay">🍎 Apple Pay</span>
+                    <span class="payment-badge" title="Google Pay">🇬 Google Pay</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive General Modal (for quick view / alerts) -->
+    <div id="general-modal" class="modal-backdrop hidden" aria-hidden="true" role="dialog">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Notification</h3>
+                <button class="modal-close" id="general-modal-close" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="modal-confirm-btn">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core JavaScript Bundle -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
