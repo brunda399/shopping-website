@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ product.name }} — ShopEase{% endblock %}
+{% block title %}{{ product.name|safe }} — ShopEase{% endblock %}
 
 {% block content %}
 <div class="product-detail-page">
@@ -13,8 +13,12 @@
             <a href="{{ url_for('main.products') }}">Products</a>
             <span class="breadcrumb-separator">/</span>
             <a href="{{ url_for('main.products', category=product.category_name) }}">{{ product.category_name }}</a>
+            {% if product.subcategory %}
+                <span class="breadcrumb-separator">/</span>
+                <a href="{{ url_for('main.products', category=product.category_name, subcategory=product.subcategory) }}">{{ product.subcategory }}</a>
+            {% endif %}
             <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-current">{{ product.name }}</span>
+            <span class="breadcrumb-current">{{ product.name|safe }}</span>
         </nav>
 
         <!-- Main Product Showcase Grid -->
@@ -33,8 +37,11 @@
 
                 <div class="detail-media-badges">
                     <span class="detail-badge-cat">{{ product.category_name }}</span>
+                    {% if product.subcategory %}
+                        <span class="detail-badge-subcat">{{ product.subcategory }}</span>
+                    {% endif %}
                     {% if product.stock > 0 %}
-                        <span class="detail-badge-stock in-stock">✓ Available</span>
+                        <span class="detail-badge-stock in-stock">✓ In Stock ({{ product.stock }})</span>
                     {% else %}
                         <span class="detail-badge-stock out-of-stock">✕ Out of Stock</span>
                     {% endif %}
@@ -44,13 +51,18 @@
             <!-- Right Column: Product Meta & Specifications -->
             <div class="detail-info-card">
                 <div class="detail-meta-top">
-                    <span class="detail-cat-link">
-                        <a href="{{ url_for('main.products', category=product.category_name) }}">{{ product.category_name }}</a>
-                    </span>
-                    <span class="detail-item-id">Product SKU: #{{ product.id }}</span>
+                    <div class="brand-badge-box">
+                        {% if product.brand %}
+                            <span class="brand-tag">Brand: <strong>{{ product.brand }}</strong></span>
+                        {% endif %}
+                        <span class="detail-cat-link">
+                            <a href="{{ url_for('main.products', category=product.category_name) }}">{{ product.category_name }}</a>
+                        </span>
+                    </div>
+                    <span class="detail-item-id">SKU: {{ product.sku or ('#' ~ product.id) }}</span>
                 </div>
 
-                <h1 class="detail-product-title">{{ product.name }}</h1>
+                <h1 class="detail-product-title">{{ product.name|safe }}</h1>
 
                 <!-- Rating Row -->
                 <div class="detail-rating-row">
@@ -59,16 +71,20 @@
                         <strong class="rating-value">{{ "%.1f"|format(product.rating) }}</strong>
                     </div>
                     <span class="rating-divider">·</span>
-                    <span class="review-count">Verified Customer Rating</span>
+                    <span class="review-count">{{ product.review_count or 0 }} Verified Ratings</span>
                     <span class="rating-divider">·</span>
-                    <span class="verified-badge">🛡️ Authentic</span>
+                    <span class="verified-badge">🛡️ 100% Authentic</span>
                 </div>
 
                 <!-- Price & Stock Container -->
                 <div class="detail-pricing-box">
                     <div class="price-wrap">
-                        <span class="price-currency">$</span>
-                        <span class="price-amount">{{ "%.2f"|format(product.price) }}</span>
+                        <span class="price-currency">₹</span>
+                        <span class="price-amount">{{ "%.2f"|format(product.effective_price) }}</span>
+                        {% if product.sale_price and product.price > product.sale_price %}
+                            <del class="original-price">₹{{ "%.2f"|format(product.price) }}</del>
+                            <span class="discount-badge">{{ product.calculated_discount }}% OFF</span>
+                        {% endif %}
                     </div>
 
                     <div class="stock-indicator-wrap">
@@ -84,8 +100,8 @@
                             <div class="detail-stock-alert low-stock">
                                 <span class="stock-dot"></span>
                                 <div>
-                                    <strong>Only {{ product.stock }} item(s) left in stock!</strong>
-                                    <p>Order today to secure yours before it sells out.</p>
+                                    <strong>Only {{ product.stock }} left in stock!</strong>
+                                    <p>Order soon before it sells out.</p>
                                 </div>
                             </div>
                         {% else %}
@@ -93,24 +109,71 @@
                                 <span class="stock-dot"></span>
                                 <div>
                                     <strong>In Stock &amp; Ready to Ship</strong>
-                                    <p>Available in warehouse for immediate dispatch.</p>
+                                    <p>Dispatched within 24 hours.</p>
                                 </div>
                             </div>
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Description & Specifications Block -->
+                <!-- Variant Selectors: Color & Size -->
+                <div class="detail-variants-container">
+                    <!-- Color Selection -->
+                    {% if product.colors %}
+                    <div class="variant-selection-group" id="variant-color-group">
+                        <label class="variant-group-label">Color: <strong id="selected-color-name">{{ product.colors[0] }}</strong></label>
+                        <div class="color-options-row">
+                            {% for col in product.colors %}
+                            <button type="button" class="variant-color-pill {{ 'active' if loop.first else '' }}" data-color="{{ col }}">
+                                <span class="color-dot"></span>
+                                <span>{{ col }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Size Selection -->
+                    {% if product.sizes %}
+                    <div class="variant-selection-group" id="variant-size-group">
+                        <label class="variant-group-label">Size: <strong id="selected-size-name">{{ product.sizes[0] }}</strong></label>
+                        <div class="size-options-row">
+                            {% for sz in product.sizes %}
+                            <button type="button" class="variant-size-pill {{ 'active' if loop.first else '' }}" data-size="{{ sz }}">
+                                {{ sz }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Description Block -->
                 <div class="detail-description-section">
-                    <h3 class="desc-heading">Product Details &amp; Specifications</h3>
+                    <h3 class="desc-heading">Product Overview</h3>
                     <div class="desc-body">
                         {% if product.description %}
                             <p>{{ product.description }}</p>
                         {% else %}
-                            <p>No extended description provided for this product.</p>
+                            <p>Premium quality item crafted for daily comfort and timeless elegance.</p>
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Specifications Table -->
+                {% if product.specifications %}
+                <div class="detail-specs-section">
+                    <h3 class="desc-heading">Product Details &amp; Specifications</h3>
+                    <div class="specs-table-grid">
+                        {% for key, val in product.specifications.items() %}
+                        <div class="specs-row">
+                            <span class="specs-key">{{ key }}</span>
+                            <strong class="specs-val">{{ val }}</strong>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Action Button Controls -->
                 <div class="detail-actions-panel">
@@ -125,9 +188,27 @@
                             </div>
                         </div>
 
-                        <button type="button" class="btn btn-primary btn-lg detail-add-cart-btn" id="btn-detail-add-cart" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image }}" data-category="{{ product.category_name or 'General' }}" data-stock="{{ product.stock }}">
+                        <!-- Add to Cart CTA -->
+                        <button type="button" class="btn btn-primary btn-lg detail-add-cart-btn" id="btn-detail-add-cart" 
+                                data-id="{{ product.id }}" 
+                                data-name="{{ product.name }}" 
+                                data-price="{{ product.effective_price }}" 
+                                data-image="{{ product.image }}" 
+                                data-category="{{ product.category_name or 'General' }}" 
+                                data-stock="{{ product.stock }}">
                             <span>🛒</span> Add to Cart
                         </button>
+
+                        <!-- Buy Now CTA -->
+                        <form action="{{ url_for('main.buy_now') }}" method="POST" id="form-buy-now" class="buy-now-form">
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="quantity" id="buy-now-qty" value="1">
+                            <input type="hidden" name="size" id="buy-now-size" value="{{ product.sizes[0] if product.sizes else '' }}">
+                            <input type="hidden" name="color" id="buy-now-color" value="{{ product.colors[0] if product.colors else '' }}">
+                            <button type="submit" class="btn btn-warning btn-lg btn-buy-now" id="btn-detail-buy-now">
+                                <span>⚡</span> Buy Now
+                            </button>
+                        </form>
                     </div>
                     {% else %}
                     <button type="button" class="btn btn-secondary btn-lg" disabled>
@@ -152,29 +233,29 @@
                     <div class="perk-box">
                         <span class="perk-icon">🚚</span>
                         <div class="perk-text">
-                            <strong>Fast Tracked Delivery</strong>
-                            <span>Free shipping on all orders over $50</span>
+                            <strong>Fast Dispatch</strong>
+                            <span>Free shipping on orders over ₹999</span>
                         </div>
                     </div>
                     <div class="perk-box">
                         <span class="perk-icon">🔄</span>
                         <div class="perk-text">
-                            <strong>30-Day Hassle-Free Returns</strong>
-                            <span>Easy returns &amp; exchanges</span>
+                            <strong>7-Day Easy Returns</strong>
+                            <span>Doorstep pickup available</span>
                         </div>
                     </div>
                     <div class="perk-box">
-                        <span class="perk-icon">🔒</span>
+                        <span class="perk-icon">💵</span>
                         <div class="perk-text">
-                            <strong>Secure 256-Bit SSL</strong>
-                            <span>Encrypted payment protection</span>
+                            <strong>Cash on Delivery</strong>
+                            <span>Pay at your doorstep</span>
                         </div>
                     </div>
                     <div class="perk-box">
                         <span class="perk-icon">🛡️</span>
                         <div class="perk-text">
-                            <strong>100% Genuine Guarantee</strong>
-                            <span>Direct authentic manufacturer warranty</span>
+                            <strong>100% Genuine</strong>
+                            <span>Direct authentic brand warranty</span>
                         </div>
                     </div>
                 </div>
@@ -182,13 +263,74 @@
             </div>
         </div>
 
+        <!-- Customer Reviews & Rating Section -->
+        <section class="product-reviews-section" id="reviews-section">
+            <div class="reviews-header">
+                <div>
+                    <span class="section-eyebrow">Customer Feedback</span>
+                    <h2 class="reviews-heading">Ratings &amp; Reviews</h2>
+                </div>
+                {% if current_user %}
+                <button type="button" class="btn btn-outline btn-sm" id="btn-open-review-form">
+                    ✍️ Write a Review
+                </button>
+                {% else %}
+                <a href="{{ url_for('main.login', next=request.path) }}" class="btn btn-outline btn-sm">
+                    Sign in to Review
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Review Form (Hidden by default unless toggled) -->
+            {% if current_user %}
+            <div class="review-form-card hidden" id="review-form-box">
+                <h3>Write Your Review</h3>
+                <form id="form-submit-review" data-product-id="{{ product.id }}">
+                    <div class="rating-input-row">
+                        <label>Your Rating:</label>
+                        <div class="star-rating-select" id="star-rating-select">
+                            <span class="star-choice active" data-score="5">★ 5</span>
+                            <span class="star-choice" data-score="4">★ 4</span>
+                            <span class="star-choice" data-score="3">★ 3</span>
+                            <span class="star-choice" data-score="2">★ 2</span>
+                            <span class="star-choice" data-score="1">★ 1</span>
+                        </div>
+                        <input type="hidden" id="review-score-input" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="review-title">Review Title</label>
+                        <input type="text" id="review-title" placeholder="Great fit, beautiful fabric..." class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="review-comment">Detailed Feedback *</label>
+                        <textarea id="review-comment" required rows="3" placeholder="Share your experience regarding sizing, fabric, and delivery..." class="form-control"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-send-review">Submit Review</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="btn-cancel-review">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Reviews Stream -->
+            <div class="reviews-stream-container" id="reviews-stream-container">
+                <div class="reviews-loading-state" id="reviews-loading">
+                    <span class="spinner-dot"></span> Loading authentic reviews...
+                </div>
+                <div class="reviews-list-stack hidden" id="reviews-list-stack">
+                    <!-- Populated dynamically by main.js -->
+                </div>
+            </div>
+        </section>
+
         <!-- Related Products Discovery Section -->
         {% if related_products %}
         <section class="related-products-section">
             <div class="related-header">
                 <div>
                     <span class="section-eyebrow">Curated Recommendations</span>
-                    <h2 class="related-heading">You May Also Like in {{ product.category_name }}</h2>
+                    <h2 class="related-heading">You May Also Like — Similar Styles in {{ product.category_name }}</h2>
                 </div>
                 <a href="{{ url_for('main.products', category=product.category_name) }}" class="view-more-link">
                     View More in {{ product.category_name }} →
@@ -223,7 +365,7 @@
 
                         <div class="product-card-footer">
                             <div class="price-stock-box">
-                                <span class="product-price">${{ "%.2f"|format(item.price) }}</span>
+                                <span class="product-price">₹{{ "%.2f"|format(item.sale_price or item.price) }}</span>
                                 {% if item.stock <= 0 %}
                                     <span class="stock-badge out-of-stock">Out of Stock</span>
                                 {% elif item.stock <= 5 %}
@@ -249,11 +391,44 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Quantity Selector (+/-)
+    // 1. Variant Selectors (Size & Color)
+    let selectedSize = '{{ product.sizes[0] if product.sizes else "" }}';
+    let selectedColor = '{{ product.colors[0] if product.colors else "" }}';
+
+    const colorPills = document.querySelectorAll('.variant-color-pill');
+    const colorLabel = document.getElementById('selected-color-name');
+    const buyNowColorInput = document.getElementById('buy-now-color');
+
+    colorPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            colorPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            selectedColor = pill.getAttribute('data-color');
+            if (colorLabel) colorLabel.textContent = selectedColor;
+            if (buyNowColorInput) buyNowColorInput.value = selectedColor;
+        });
+    });
+
+    const sizePills = document.querySelectorAll('.variant-size-pill');
+    const sizeLabel = document.getElementById('selected-size-name');
+    const buyNowSizeInput = document.getElementById('buy-now-size');
+
+    sizePills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            sizePills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            selectedSize = pill.getAttribute('data-size');
+            if (sizeLabel) sizeLabel.textContent = selectedSize;
+            if (buyNowSizeInput) buyNowSizeInput.value = selectedSize;
+        });
+    });
+
+    // 2. Quantity Selector (+/-)
     const btnInc = document.getElementById('detail-qty-inc');
     const btnDec = document.getElementById('detail-qty-dec');
     const qtyInput = document.getElementById('detail-qty-input');
     const btnAddCart = document.getElementById('btn-detail-add-cart');
+    const buyNowQtyInput = document.getElementById('buy-now-qty');
 
     if (btnInc && qtyInput) {
         btnInc.addEventListener('click', () => {
@@ -261,8 +436,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const max = parseInt(btnInc.getAttribute('max')) || 999;
             if (current < max) {
                 qtyInput.value = current + 1;
+                if (buyNowQtyInput) buyNowQtyInput.value = qtyInput.value;
             } else {
-                showToast(`Maximum available stock is ${max}.`, 'warning');
+                if (window.showToast) showToast(`Maximum available stock is ${max}.`, 'warning');
             }
         });
     }
@@ -272,11 +448,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const current = parseInt(qtyInput.value) || 1;
             if (current > 1) {
                 qtyInput.value = current - 1;
+                if (buyNowQtyInput) buyNowQtyInput.value = qtyInput.value;
             }
         });
     }
 
-    // 2. Add to Cart Button Click
+    if (qtyInput) {
+        qtyInput.addEventListener('change', () => {
+            if (buyNowQtyInput) buyNowQtyInput.value = qtyInput.value;
+        });
+    }
+
+    // 3. Add to Cart with selected variant
     if (btnAddCart) {
         btnAddCart.addEventListener('click', async () => {
             const id = btnAddCart.getAttribute('data-id');
@@ -294,13 +477,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     price,
                     image,
                     category,
-                    quantity: qty
+                    quantity: qty,
+                    selected_size: selectedSize,
+                    selected_color: selectedColor,
+                    size: selectedSize,
+                    color: selectedColor,
                 });
             }
         });
     }
 
-    // 3. Wishlist binding for product detail page
+    // 4. Wishlist binding
     const btnWishlist = document.getElementById('btn-detail-wishlist');
     const lblWishlist = document.getElementById('detail-wishlist-label');
 
@@ -321,6 +508,98 @@ document.addEventListener('DOMContentLoaded', () => {
         btnWishlist.addEventListener('click', () => {
             AppState.toggleWishlist({ id, name });
             updateWishlistButton();
+        });
+    }
+
+    // 5. Load and Render Reviews
+    const productId = '{{ product.id }}';
+    async function loadReviews() {
+        const loader = document.getElementById('reviews-loading');
+        const stack = document.getElementById('reviews-list-stack');
+        if (!loader || !stack) return;
+
+        try {
+            const resp = await fetch(`/api/products/${productId}/reviews`);
+            const json = await resp.json();
+            loader.classList.add('hidden');
+            stack.classList.remove('hidden');
+
+            if (json.success && json.data && json.data.length > 0) {
+                stack.innerHTML = json.data.map(rev => `
+                    <div class="review-bubble">
+                        <div class="review-bubble-top">
+                            <span class="review-author">👤 ${rev.user_name || 'Customer'}</span>
+                            ${rev.is_verified_purchase ? '<span class="verified-tag">✓ Verified Purchase</span>' : ''}
+                            <span class="review-date">${rev.created_at ? rev.created_at.slice(0, 10) : ''}</span>
+                        </div>
+                        <div class="review-star-row">
+                            <span class="stars">${'★'.repeat(Math.round(rev.rating))}</span>
+                            ${rev.title ? `<strong class="review-bubble-title">${rev.title}</strong>` : ''}
+                        </div>
+                        <p class="review-comment-text">${rev.comment}</p>
+                    </div>
+                `).join('');
+            } else {
+                stack.innerHTML = '<p class="no-reviews-note">No reviews yet for this product. Be the first to share your experience!</p>';
+            }
+        } catch (e) {
+            loader.classList.add('hidden');
+        }
+    }
+    loadReviews();
+
+    // 6. Review Form Interactions
+    const btnOpenForm = document.getElementById('btn-open-review-form');
+    const formBox = document.getElementById('review-form-box');
+    const btnCancelReview = document.getElementById('btn-cancel-review');
+    const btnSendReview = document.getElementById('btn-send-review');
+
+    if (btnOpenForm && formBox) {
+        btnOpenForm.addEventListener('click', () => formBox.classList.toggle('hidden'));
+    }
+    if (btnCancelReview && formBox) {
+        btnCancelReview.addEventListener('click', () => formBox.classList.add('hidden'));
+    }
+
+    // Star selection
+    const starChoices = document.querySelectorAll('.star-choice');
+    const scoreInput = document.getElementById('review-score-input');
+    starChoices.forEach(sc => {
+        sc.addEventListener('click', () => {
+            starChoices.forEach(s => s.classList.remove('active'));
+            sc.classList.add('active');
+            if (scoreInput) scoreInput.value = sc.getAttribute('data-score');
+        });
+    });
+
+    if (btnSendReview) {
+        btnSendReview.addEventListener('click', async () => {
+            const rating = scoreInput ? parseFloat(scoreInput.value) : 5;
+            const title = document.getElementById('review-title')?.value || '';
+            const comment = document.getElementById('review-comment')?.value || '';
+
+            if (!comment.trim()) {
+                if (window.showToast) showToast('Please enter your review feedback.', 'warning');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/products/${productId}/reviews`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rating, title, comment })
+                });
+                const json = await resp.json();
+                if (json.success) {
+                    if (window.showToast) showToast('Review submitted successfully!', 'success');
+                    if (formBox) formBox.classList.add('hidden');
+                    loadReviews();
+                } else {
+                    if (window.showToast) showToast(json.error?.message || 'Failed to submit review.', 'error');
+                }
+            } catch (err) {
+                if (window.showToast) showToast('Network error submitting review.', 'error');
+            }
         });
     }
 });

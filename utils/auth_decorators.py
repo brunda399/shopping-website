@@ -22,6 +22,10 @@ def login_required(f):
     return decorated_function
 
 
+# API alias for explicit API route readability
+login_required_api = login_required
+
+
 def admin_required(f):
     """Decorator ensuring that a route can only be accessed by an administrator."""
     @functools.wraps(f)

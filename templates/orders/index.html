@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders &amp; Purchases — ShopEase{% endblock %}
+
+{% block content %}
+<div class="orders-page-wrapper">
+    <div class="catalog-hero-strip">
+        <div class="container catalog-hero-container">
+            <div class="catalog-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active">My Orders</span>
+            </div>
+            <div class="catalog-hero-text">
+                <h1 class="catalog-title">My Orders</h1>
+                <p class="catalog-subtitle">Track deliveries, inspect purchase details, and manage previous orders.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container orders-container">
+        {% if orders %}
+            <div class="orders-list-stack">
+                {% for order in orders %}
+                <div class="order-summary-card" data-order-number="{{ order.orderNumber }}">
+                    <!-- Order Header -->
+                    <div class="order-card-header">
+                        <div class="order-header-left">
+                            <span class="order-label">ORDER PLACED</span>
+                            <span class="order-val">{{ order.createdAt[:10] if order.createdAt else 'Recently' }}</span>
+                        </div>
+                        <div class="order-header-mid">
+                            <span class="order-label">TOTAL</span>
+                            <strong class="order-val">₹{{ "%.2f"|format(order.total) }}</strong>
+                        </div>
+                        <div class="order-header-ship">
+                            <span class="order-label">SHIP TO</span>
+                            <span class="order-val">{{ order.shippingAddress.fullName if order.shippingAddress else order.fullName }}</span>
+                        </div>
+                        <div class="order-header-right">
+                            <span class="order-label">ORDER # {{ order.orderNumber }}</span>
+                            <div class="order-header-links">
+                                <a href="{{ url_for('main.order_detail_page', identifier=order.orderNumber) }}" class="link-order-detail">View Details</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Body -->
+                    <div class="order-card-body">
+                        <div class="order-status-banner">
+                            <span class="status-indicator-dot status-{{ order.orderStatus.lower() }}"></span>
+                            <div>
+                                <h3 class="order-status-text">{{ order.orderStatus }}</h3>
+                                <p class="order-delivery-text">Estimated Delivery: <strong>{{ order.estimatedDelivery or 'In transit' }}</strong></p>
+                            </div>
+                            <span class="badge-payment">{{ order.paymentMethod }} ({{ order.paymentStatus }})</span>
+                        </div>
+
+                        <div class="order-items-preview-grid">
+                            {% for item in order['items'] %}
+                            <div class="order-item-card">
+                                <div class="order-item-thumb">
+                                    {% if item.image and item.image.startswith('/static/') %}
+                                        <img src="{{ item.image }}" alt="{{ item.productName }}">
+                                    {% else %}
+                                        <span class="item-emoji">{{ item.image or '📦' }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="order-item-meta">
+                                    <h4 class="order-item-name">{{ item.productName }}</h4>
+                                    <div class="order-item-specs">
+                                        {% if item.size %}<span>Size: <strong>{{ item.size }}</strong></span>{% endif %}
+                                        {% if item.color %}<span>Color: <strong>{{ item.color }}</strong></span>{% endif %}
+                                        <span>Qty: <strong>{{ item.quantity }}</strong></span>
+                                    </div>
+                                    <strong class="order-item-price">₹{{ "%.2f"|format(item.subtotal or item.price) }}</strong>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Card Action Footer -->
+                        <div class="order-card-footer">
+                            <a href="{{ url_for('main.order_detail_page', identifier=order.orderNumber) }}" class="btn btn-outline btn-sm">
+                                <span>🔍 Track Package</span>
+                            </a>
+                            <a href="{{ url_for('main.products') }}" class="btn btn-ghost btn-sm">
+                                <span>Buy Again</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty Orders State -->
+            <div class="orders-empty-state">
+                <div class="empty-icon-wrap">📦</div>
+                <h2>No Orders Found</h2>
+                <p>You haven't placed any orders yet. Start exploring our latest collections!</p>
+                <div class="empty-actions">
+                    <a href="{{ url_for('main.products') }}" class="btn btn-primary">
+                        <span>⚡</span> Start Shopping
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Order Placed Successfully! #{{ order.orderNumber }} — ShopEase{% endblock %}
+
+{% block content %}
+<div class="confirmation-page-wrapper">
+    <div class="container confirmation-container">
+
+        <!-- Success Banner -->
+        <div class="confirmation-success-card">
+            <div class="success-icon-badge">✓</div>
+            <h1 class="success-title">Order placed successfully!</h1>
+            <p class="success-subtitle">Thank you for your purchase. We have received your order and are getting it ready for dispatch.</p>
+
+            <div class="order-id-highlight">
+                <span class="order-id-label">Order Number:</span>
+                <strong class="order-id-value" id="confirmation-order-number">{{ order.orderNumber }}</strong>
+                <button type="button" class="btn-copy-order" id="btn-copy-order" title="Copy Order ID">📋</button>
+            </div>
+        </div>
+
+        <div class="confirmation-grid">
+            <!-- Left: Order Summary Details -->
+            <div class="confirmation-details-col">
+                <!-- Status & Delivery Tracker Banner -->
+                <div class="order-meta-card">
+                    <div class="order-meta-item">
+                        <span class="meta-label">Status</span>
+                        <span class="badge-status badge-{{ order.orderStatus.lower() }}">{{ order.orderStatus }}</span>
+                    </div>
+                    <div class="order-meta-item">
+                        <span class="meta-label">Payment Method</span>
+                        <strong class="meta-val">{{ order.paymentMethod }} ({{ order.paymentStatus }})</strong>
+                    </div>
+                    <div class="order-meta-item">
+                        <span class="meta-label">Estimated Delivery</span>
+                        <strong class="meta-val text-success">🚚 {{ order.estimatedDelivery }}</strong>
+                    </div>
+                </div>
+
+                <!-- Products Purchased List -->
+                <div class="confirmed-products-card">
+                    <h3 class="card-section-title">Items Ordered ({{ order['items']|length }})</h3>
+                    <div class="confirmed-items-list">
+                        {% for item in order['items'] %}
+                        <div class="confirmed-item-row">
+                            <div class="confirmed-thumb">
+                                {% if item.image and item.image.startswith('/static/') %}
+                                    <img src="{{ item.image }}" alt="{{ item.productName }}">
+                                {% else %}
+                                    <span class="item-emoji">{{ item.image or '📦' }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="confirmed-info">
+                                <h4 class="item-name">{{ item.productName }}</h4>
+                                <div class="variant-chips">
+                                    {% if item.size %}
+                                        <span class="chip">Size: <strong>{{ item.size }}</strong></span>
+                                    {% endif %}
+                                    {% if item.color %}
+                                        <span class="chip">Color: <strong>{{ item.color }}</strong></span>
+                                    {% endif %}
+                                    <span class="chip">Qty: <strong>{{ item.quantity }}</strong></span>
+                                </div>
+                            </div>
+                            <div class="confirmed-pricing">
+                                <span class="unit-price">₹{{ "%.2f"|format(item.price) }}</span>
+                                <strong class="subtotal-price">₹{{ "%.2f"|format(item.subtotal) }}</strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Action CTA Buttons -->
+                <div class="confirmation-actions-row">
+                    <a href="{{ url_for('main.order_detail_page', identifier=order.orderNumber) }}" class="btn btn-primary" id="btn-view-order">
+                        <span>📦 View Order Details</span>
+                    </a>
+                    <a href="{{ url_for('main.orders_page') }}" class="btn btn-outline" id="btn-track-order">
+                        <span>📜 Order History</span>
+                    </a>
+                    <a href="{{ url_for('main.products') }}" class="btn btn-ghost" id="btn-continue-shopping">
+                        <span>← Continue Shopping</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right: Delivery Address & Receipt Sidebar -->
+            <aside class="confirmation-sidebar-col">
+                <!-- Delivery Address Card -->
+                <div class="conf-sidebar-card">
+                    <h3 class="sidebar-heading">Delivery Address</h3>
+                    <div class="sidebar-address-body">
+                        <strong class="recipient-name">{{ order.shippingAddress.fullName }}</strong>
+                        <p class="recipient-line">{{ order.shippingAddress.addressLine1 }}</p>
+                        {% if order.shippingAddress.addressLine2 %}
+                            <p class="recipient-line">{{ order.shippingAddress.addressLine2 }}</p>
+                        {% endif %}
+                        <p class="recipient-city">{{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} - {{ order.shippingAddress.postalCode }}</p>
+                        <p class="recipient-phone">📞 {{ order.shippingAddress.phone }}</p>
+                    </div>
+                </div>
+
+                <!-- Price Details Breakdown -->
+                <div class="conf-sidebar-card">
+                    <h3 class="sidebar-heading">Order Total</h3>
+                    <div class="summary-breakdown-list">
+                        <div class="summary-row">
+                            <span class="row-label">Subtotal</span>
+                            <span class="row-val">₹{{ "%.2f"|format(order.subtotal) }}</span>
+                        </div>
+                        {% if order.discount > 0 %}
+                        <div class="summary-row">
+                            <span class="row-label">Discount</span>
+                            <span class="row-val text-success">−₹{{ "%.2f"|format(order.discount) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="summary-row">
+                            <span class="row-label">Shipping</span>
+                            <span class="row-val text-success">
+                                {% if order.shipping == 0.0 %}FREE{% else %}₹{{ "%.2f"|format(order.shipping) }}{% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="row-label">Tax (5% GST)</span>
+                            <span class="row-val">₹{{ "%.2f"|format(order.tax) }}</span>
+                        </div>
+                        <div class="summary-row total-row">
+                            <span class="row-label">Grand Total</span>
+                            <strong class="row-val total-price">₹{{ "%.2f"|format(order.total) }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

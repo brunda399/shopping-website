@@ -208,28 +208,43 @@ const AppState = {
     async addToCart(product) {
         const qtyToAdd = product.quantity && product.quantity > 0 ? parseInt(product.quantity) : 1;
         const productId = parseInt(product.id || product.product_id);
+        const size = product.selected_size || product.size || '';
+        const color = product.selected_color || product.color || '';
 
         const res = await ApiService.post('/api/cart/items', {
             product_id: productId,
-            quantity: qtyToAdd
+            quantity: qtyToAdd,
+            selected_size: size,
+            selected_color: color,
         });
 
         if (res.success) {
-            const existing = this.cart.find(item => item.id == productId);
+            const existing = this.cart.find(item => 
+                item.id == productId && 
+                (item.selected_size || item.size || '') == size && 
+                (item.selected_color || item.color || '') == color
+            );
+
             if (existing) {
                 existing.quantity += qtyToAdd;
             } else {
                 this.cart.push({
                     id: productId,
+                    product_id: productId,
                     name: product.name,
                     price: parseFloat(product.price),
                     image: product.image || '📦',
                     category: product.category || 'General',
-                    quantity: qtyToAdd
+                    quantity: qtyToAdd,
+                    selected_size: size,
+                    selected_color: color,
+                    size: size,
+                    color: color,
                 });
             }
             this.saveCart();
-            showToast(`Added "${product.name}" to shopping bag!`, 'success');
+            const variantNote = [size, color].filter(Boolean).join(' / ');
+            showToast(`Added "${product.name}"${variantNote ? ' (' + variantNote + ')' : ''} to bag!`, 'success');
             openCartDrawer();
             return true;
         } else {
@@ -237,6 +252,7 @@ const AppState = {
             return false;
         }
     },
+
 
     async updateCartQuantity(productId, delta) {
         const item = this.cart.find(i => i.id == productId);
@@ -1020,13 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const footerTrackOrder = document.getElementById('footer-track-order');
 
     function promptOrderTracking() {
-        openGeneralModal(
-            'Order Tracking',
-            `<p>Track your shipment status with real-time updates.</p>
-             <p style="margin-top: 0.5rem; color: #4f46e5; font-weight: 600;">
-                Full Order Tracking and History will be available in <strong>Module 7 &amp; 8</strong>.
-             </p>`
-        );
+        window.location.href = '/orders';
     }
 
     if (trackOrderBtn) trackOrderBtn.addEventListener('click', promptOrderTracking);
@@ -1050,4 +1060,281 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     checkApiHealth();
+
+    // -------------------------------------------------------------------------
+    // 6. Module 7: Functional E-Commerce Handlers (Checkout, Addresses, Orders)
+    // -------------------------------------------------------------------------
+
+    // 6.1 Cart Page: Proceed to Checkout Button
+    const btnCartCheckout = document.getElementById('btn-cart-checkout');
+    if (btnCartCheckout) {
+        btnCartCheckout.addEventListener('click', () => {
+            window.location.href = '/checkout';
+        });
+    }
+
+    // 6.2 Checkout: Delivery Address Card Selection
+    const addressCards = document.querySelectorAll('.address-card');
+    addressCards.forEach(card => {
+        card.addEventListener('click', () => {
+            addressCards.forEach(c => c.classList.remove('selected-address'));
+            card.classList.add('selected-address');
+            const radio = card.querySelector('.address-radio');
+            if (radio) radio.checked = true;
+        });
+    });
+
+    // 6.3 Checkout: Toggle New Address Form
+    const btnShowAddAddr = document.getElementById('btn-show-add-address');
+    const newAddrBox = document.getElementById('new-address-form-box');
+    const btnCancelAddr = document.getElementById('btn-cancel-address');
+
+    if (btnShowAddAddr && newAddrBox) {
+        btnShowAddAddr.addEventListener('click', () => {
+            newAddrBox.classList.toggle('hidden');
+        });
+    }
+
+    if (btnCancelAddr && newAddrBox) {
+        btnCancelAddr.addEventListener('click', () => {
+            newAddrBox.classList.add('hidden');
+        });
+    }
+
+    // 6.4 Checkout: Save Address via AJAX
+    const btnSaveAddr = document.getElementById('btn-save-address-ajax');
+    if (btnSaveAddr) {
+        btnSaveAddr.addEventListener('click', async () => {
+            const form = document.getElementById('form-checkout-address');
+            if (!form) return;
+
+            const fullName = document.getElementById('addr-fullname')?.value.trim();
+            const phone = document.getElementById('addr-phone')?.value.trim();
+            const postalCode = document.getElementById('addr-pincode')?.value.trim();
+            const addressLine1 = document.getElementById('addr-line1')?.value.trim();
+            const addressLine2 = document.getElementById('addr-line2')?.value.trim();
+            const city = document.getElementById('addr-city')?.value.trim();
+            const state = document.getElementById('addr-state')?.value.trim();
+            const landmark = document.getElementById('addr-landmark')?.value.trim();
+            const isDefault = document.getElementById('addr-default')?.checked;
+
+            if (!fullName || !phone || !postalCode || !addressLine1 || !city || !state) {
+                showToast('Please fill in all required address fields marked with *.', 'warning');
+                return;
+            }
+
+            btnSaveAddr.disabled = true;
+            btnSaveAddr.textContent = 'Saving...';
+
+            const res = await ApiService.post('/api/addresses', {
+                fullName,
+                phone,
+                postalCode,
+                addressLine1,
+                addressLine2,
+                city,
+                state,
+                landmark,
+                isDefault,
+            });
+
+            btnSaveAddr.disabled = false;
+            btnSaveAddr.textContent = 'Save Address';
+
+            if (res.success && res.data && res.data.data) {
+                showToast('Address saved successfully!', 'success');
+                window.location.reload();
+            } else {
+                showToast(res.error || 'Failed to save address.', 'error');
+            }
+        });
+    }
+
+    // 6.5 Checkout: Payment Method Selector
+    const paymentRows = document.querySelectorAll('.payment-method-row');
+    paymentRows.forEach(row => {
+        row.addEventListener('click', () => {
+            paymentRows.forEach(r => r.classList.remove('selected-payment'));
+            row.classList.add('selected-payment');
+            const radio = row.querySelector('.payment-radio');
+            if (radio) radio.checked = true;
+        });
+    });
+
+    // 6.6 Checkout: Place Order Execution
+    const btnPlaceOrder = document.getElementById('btn-place-order');
+    if (btnPlaceOrder) {
+        btnPlaceOrder.addEventListener('click', async () => {
+            // Disable button & show spinner
+            btnPlaceOrder.disabled = true;
+            const spinner = document.getElementById('order-submit-spinner');
+            if (spinner) spinner.classList.remove('hidden');
+
+            // 1. Resolve selected address
+            const selectedRadio = document.querySelector('input[name="selected_address_id"]:checked');
+            let addressId = selectedRadio ? parseInt(selectedRadio.value) : null;
+            let addressPayload = null;
+
+            if (!addressId) {
+                // Check if user filled in the inline form
+                const fullName = document.getElementById('addr-fullname')?.value.trim();
+                const phone = document.getElementById('addr-phone')?.value.trim();
+                const postalCode = document.getElementById('addr-pincode')?.value.trim();
+                const addressLine1 = document.getElementById('addr-line1')?.value.trim();
+                const city = document.getElementById('addr-city')?.value.trim();
+                const state = document.getElementById('addr-state')?.value.trim();
+
+                if (fullName && phone && postalCode && addressLine1 && city && state) {
+                    addressPayload = {
+                        fullName,
+                        phone,
+                        postalCode,
+                        addressLine1,
+                        addressLine2: document.getElementById('addr-line2')?.value.trim() || '',
+                        city,
+                        state,
+                        landmark: document.getElementById('addr-landmark')?.value.trim() || '',
+                        isDefault: true,
+                    };
+                }
+            }
+
+            if (!addressId && !addressPayload) {
+                btnPlaceOrder.disabled = false;
+                if (spinner) spinner.classList.add('hidden');
+                showToast('Please select or add a delivery address to place your order.', 'warning');
+                return;
+            }
+
+            // 2. Resolve Payment Method
+            const selectedPayment = document.querySelector('input[name="payment_method"]:checked')?.value || 'COD';
+            const isBuyNow = btnPlaceOrder.getAttribute('data-buy-now') === '1';
+
+            const payload = {
+                address_id: addressId,
+                address: addressPayload,
+                payment_method: selectedPayment,
+                is_buy_now: isBuyNow,
+            };
+
+            const res = await ApiService.post('/api/orders', payload);
+
+            if (res.success && res.data) {
+                showToast('Order placed successfully! Redirecting...', 'success');
+                // Clear client-side cart if normal checkout
+                if (!isBuyNow) {
+                    AppState.cart = [];
+                    AppState.saveCart();
+                }
+                setTimeout(() => {
+                    window.location.href = res.data.redirect_url || `/order-confirmation/${res.data.orderNumber}`;
+                }, 400);
+            } else {
+                btnPlaceOrder.disabled = false;
+                if (spinner) spinner.classList.add('hidden');
+                showToast(res.error || 'Failed to place order. Please review your details and try again.', 'error');
+            }
+        });
+    }
+
+    // 6.7 Order Details: Cancel Order Button
+    const btnCancelOrder = document.getElementById('btn-cancel-this-order');
+    if (btnCancelOrder) {
+        btnCancelOrder.addEventListener('click', async () => {
+            const orderId = btnCancelOrder.getAttribute('data-order-id');
+            if (!confirm('Are you sure you want to cancel this order? Your inventory will be released.')) return;
+
+            btnCancelOrder.disabled = true;
+            const res = await ApiService.post(`/api/orders/${orderId}/cancel`, {});
+            if (res.success) {
+                showToast('Order cancelled successfully.', 'info');
+                window.location.reload();
+            } else {
+                btnCancelOrder.disabled = false;
+                showToast(res.error || 'Could not cancel order.', 'error');
+            }
+        });
+    }
+
+    // 6.8 Order Confirmation: Copy Order Number
+    const btnCopyOrder = document.getElementById('btn-copy-order');
+    if (btnCopyOrder) {
+        btnCopyOrder.addEventListener('click', () => {
+            const ordNum = document.getElementById('confirmation-order-number')?.textContent.trim() || '';
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(ordNum).then(() => {
+                    showToast(`Order ID copied: ${ordNum}`, 'success');
+                });
+            }
+        });
+    }
+
+    // 6.9 Search Autocomplete & Suggestions Engine
+    function initSearchSuggestions(inputEl, resultsBoxId) {
+        if (!inputEl) return;
+        let debounceTimer;
+
+        // Create or get container
+        let resultsBox = document.getElementById(resultsBoxId);
+        if (!resultsBox) {
+            resultsBox = document.createElement('div');
+            resultsBox.id = resultsBoxId;
+            resultsBox.className = 'search-suggestions-dropdown hidden';
+            inputEl.parentElement.style.position = 'relative';
+            inputEl.parentElement.appendChild(resultsBox);
+        }
+
+        inputEl.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            const query = inputEl.value.trim();
+            if (query.length < 1) {
+                resultsBox.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/products/suggestions?q=${encodeURIComponent(query)}`);
+                    const json = await res.json();
+                    if (json.success && json.data && json.data.length > 0) {
+                        resultsBox.innerHTML = json.data.map(item => `
+                            <div class="suggestion-item" data-text="${item.text}" data-id="${item.id || ''}">
+                                <span class="suggestion-icon">🔍</span>
+                                <span class="suggestion-text">${item.text}</span>
+                                <span class="suggestion-badge">${item.category || ''}</span>
+                            </div>
+                        `).join('');
+                        resultsBox.classList.remove('hidden');
+
+                        resultsBox.querySelectorAll('.suggestion-item').forEach(s => {
+                            s.onclick = () => {
+                                const txt = s.getAttribute('data-text');
+                                const pid = s.getAttribute('data-id');
+                                if (pid) {
+                                    window.location.href = `/products/${pid}`;
+                                } else {
+                                    window.location.href = `/products?q=${encodeURIComponent(txt)}`;
+                                }
+                            };
+                        });
+                    } else {
+                        resultsBox.classList.add('hidden');
+                    }
+                } catch (e) {
+                    resultsBox.classList.add('hidden');
+                }
+            }, 250);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!inputEl.contains(e.target) && !resultsBox.contains(e.target)) {
+                resultsBox.classList.add('hidden');
+            }
+        });
+    }
+
+    // Initialize suggestions on header search input and catalog search input
+    initSearchSuggestions(document.getElementById('nav-search-input'), 'nav-search-suggestions');
+    initSearchSuggestions(document.getElementById('catalog-search-input'), 'catalog-search-suggestions');
 });
+

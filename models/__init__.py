@@ -10,6 +10,8 @@ from .product import Product
 from .cart import Cart, CartItem
 from .wishlist import Wishlist
 from .order import Order, OrderItem
+from .address import Address
+from .review import Review
 
 __all__ = [
     "db",
@@ -21,4 +23,7 @@ __all__ = [
     "Wishlist",
     "Order",
     "OrderItem",
+    "Address",
+    "Review",
 ]
+

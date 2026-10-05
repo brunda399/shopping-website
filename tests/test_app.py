@@ -1418,8 +1418,309 @@ class Module6WishlistTestCase(unittest.TestCase):
         self.assertEqual(items[1]["name"], self.prod2.name)
 
 
+class Module7FunctionalEcommerceTestCase(unittest.TestCase):
+    """Test suite validating Module 7 functional e-commerce workflows and complete user journey."""
+
+    def setUp(self):
+        """Initialize in-memory testing database with user, addresses, and large catalog."""
+        self.app = create_app("testing")
+        self.client = self.app.test_client()
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+        # Seed catalog
+        from data.seed_catalog import seed_large_catalog
+        seed_large_catalog()
+
+        # Create demo customer
+        from models import User
+        self.user = User(
+            name="Sai Brunda",
+            email="customer@example.com",
+            phone="9876543210",
+            role="USER"
+        )
+        self.user.set_password("password123")
+        db.session.add(self.user)
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    def _login(self):
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = self.user.id
+            sess["user_name"] = self.user.name
+            sess["user_email"] = self.user.email
+            sess["user_role"] = self.user.role
+
+    def test_1_search_kurti_returns_multiple_kurtis(self):
+        """Test 1: Search 'kurti' and confirm multiple Kurtis appear."""
+        res = self.client.get("/api/products?q=kurti")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()["data"]
+        self.assertGreater(len(data), 5)
+        for item in data:
+            self.assertTrue("kurti" in item["name"].lower() or "kurti" in str(item["subcategory"]).lower() or "kurta" in item["name"].lower())
+
+    def test_2_filter_women_kurtis_under_1000(self):
+        """Test 2: Filter Women, Kurtis, Under Rs.1000 and confirm results update."""
+        res = self.client.get("/api/products?category=Women's%20Fashion&subcategory=Kurtis&max_price=1000")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()["data"]
+        self.assertGreater(len(data), 0)
+        for p in data:
+            self.assertLessEqual(p["sale_price"], 1000.0)
+            self.assertEqual(p["subcategory"], "Kurtis")
+
+    def test_intelligent_search_phrase_parsing(self):
+        """Test intelligent query 'women kurti under 1000' parses price and category."""
+        res = self.client.get("/api/products?q=women%20kurti%20under%201000")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()["data"]
+        self.assertGreater(len(data), 0)
+        for p in data:
+            self.assertLessEqual(p["sale_price"], 1000.0)
+
+    def test_search_autocomplete_suggestions(self):
+        """Test autocomplete endpoint returns relevant suggestions for 'kur'."""
+        res = self.client.get("/api/products/suggestions?q=kur")
+        self.assertEqual(res.status_code, 200)
+        suggestions = res.get_json()["data"]
+        self.assertGreater(len(suggestions), 0)
+        texts = [s["text"].lower() for s in suggestions]
+        self.assertTrue(any("kurti" in t or "kurta" in t for t in texts))
+
+    def test_3_and_4_add_variants_to_cart_without_overwrite(self):
+        """Test 3 & 4: Add Blue Kurti M (qty 2) then Pink Kurti L (qty 1), confirm both exist."""
+        self._login()
+        kurti = Product.query.filter(Product.name.ilike("%Floral Printed Cotton A-Line Kurti%")).first()
+        self.assertIsNotNone(kurti)
+
+        # Add Blue / M / Qty 2
+        res1 = self.client.post("/api/cart/items", json={
+            "product_id": kurti.id,
+            "quantity": 2,
+            "selected_size": "M",
+            "selected_color": "Blue"
+        })
+        self.assertEqual(res1.status_code, 200)
+
+        # Add Pink / L / Qty 1
+        res2 = self.client.post("/api/cart/items", json={
+            "product_id": kurti.id,
+            "quantity": 1,
+            "selected_size": "L",
+            "selected_color": "Pink"
+        })
+        self.assertEqual(res2.status_code, 200)
+
+        # Fetch cart
+        cart_res = self.client.get("/api/cart")
+        self.assertEqual(cart_res.status_code, 200)
+        cart_data = cart_res.get_json()["data"]
+
+        # Confirm 2 distinct items exist in cart
+        self.assertEqual(cart_data["items_count"], 2)
+        self.assertEqual(cart_data["total_quantity"], 3)
+
+        sizes_in_cart = [itm["selected_size"] for itm in cart_data["items"]]
+        colors_in_cart = [itm["selected_color"] for itm in cart_data["items"]]
+        self.assertIn("M", sizes_in_cart)
+        self.assertIn("L", sizes_in_cart)
+        self.assertIn("Blue", colors_in_cart)
+        self.assertIn("Pink", colors_in_cart)
+
+    def test_5_update_quantity_recalculates_totals(self):
+        """Test 5: Change quantity and confirm cart totals update dynamically."""
+        self._login()
+        kurti = Product.query.filter(Product.name.ilike("%Floral Printed Cotton A-Line Kurti%")).first()
+        
+        # Add item
+        add_res = self.client.post("/api/cart/items", json={
+            "product_id": kurti.id,
+            "quantity": 1,
+            "size": "M",
+            "color": "Blue"
+        })
+        item_id = add_res.get_json()["data"]["id"]
+
+        # Update quantity to 4
+        upd_res = self.client.put(f"/api/cart/items/{item_id}", json={"quantity": 4})
+        self.assertEqual(upd_res.status_code, 200)
+        summary = upd_res.get_json()["cart"]
+
+        expected_subtotal = round(kurti.effective_price * 4, 2)
+        self.assertEqual(summary["total_quantity"], 4)
+        self.assertEqual(summary["subtotal"], expected_subtotal)
+
+    def test_6_7_8_9_10_complete_checkout_journey(self):
+        """
+        Complete End-to-End User Journey:
+        - Proceed to checkout
+        - Save/Select address
+        - Select Cash on Delivery
+        - Place order
+        - Confirm: order created, cart cleared, stock decreased, confirmation rendered
+        - Order appears in Orders history
+        - Data persists upon refresh
+        """
+        self._login()
+
+        # Step 6: Add delivery address
+        addr_payload = {
+            "fullName": "Sai Brunda",
+            "phone": "9876543210",
+            "addressLine1": "Flat 402, Green Glen Layout",
+            "addressLine2": "Outer Ring Road, Bellandur",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "postalCode": "560103",
+            "landmark": "Near Central Mall",
+            "isDefault": True,
+        }
+        addr_res = self.client.post("/api/addresses", json=addr_payload)
+        self.assertEqual(addr_res.status_code, 201)
+        address_id = addr_res.get_json()["data"]["id"]
+
+        # Add kurti to cart
+        kurti = Product.query.filter(Product.name.ilike("%Floral Printed Cotton A-Line Kurti%")).first()
+        initial_stock = kurti.stock
+
+        self.client.post("/api/cart/items", json={
+            "product_id": kurti.id,
+            "quantity": 2,
+            "size": "M",
+            "color": "Blue"
+        })
+
+        # Step 7 & 8: Place Order with Cash on Delivery
+        order_res = self.client.post("/api/orders", json={
+            "address_id": address_id,
+            "payment_method": "COD",
+        })
+        self.assertEqual(order_res.status_code, 201)
+        order_data = order_res.get_json()["data"]
+
+        # Confirm Order created
+        self.assertIsNotNone(order_data["orderNumber"])
+        self.assertEqual(order_data["paymentMethod"], "COD")
+        self.assertEqual(order_data["orderStatus"], "PLACED")
+        self.assertEqual(len(order_data["items"]), 1)
+        self.assertEqual(order_data["items"][0]["quantity"], 2)
+
+        # Confirm Cart cleared
+        cart_res = self.client.get("/api/cart")
+        self.assertEqual(cart_res.get_json()["data"]["items_count"], 0)
+
+        # Confirm Stock decreased
+        db.session.expire_all()
+        updated_kurti = Product.query.get(kurti.id)
+        self.assertEqual(updated_kurti.stock, initial_stock - 2)
+
+        # Step 9: Open Orders History
+        orders_res = self.client.get("/api/orders")
+        self.assertEqual(orders_res.status_code, 200)
+        orders_list = orders_res.get_json()["data"]
+        self.assertGreaterEqual(len(orders_list), 1)
+        self.assertEqual(orders_list[0]["orderNumber"], order_data["orderNumber"])
+
+        # Step 10: Verify persistent data through HTML detail & confirmation view
+        conf_html = self.client.get(f"/order-confirmation/{order_data['orderNumber']}")
+        self.assertEqual(conf_html.status_code, 200)
+        self.assertIn(b"Order placed successfully!", conf_html.data)
+        self.assertIn(order_data["orderNumber"].encode(), conf_html.data)
+
+        # Verify tracking timeline
+        track_res = self.client.get(f"/api/orders/track/{order_data['orderNumber']}")
+        self.assertEqual(track_res.status_code, 200)
+        self.assertEqual(track_res.get_json()["data"]["orderStatus"], "PLACED")
+
+    def test_buy_now_direct_order_placement(self):
+        """Test Buy Now flow creates order directly and leaves regular cart untouched."""
+        self._login()
+        kurti = Product.query.filter(Product.name.ilike("%Floral Printed Cotton A-Line Kurti%")).first()
+
+        # Place regular item in cart
+        self.client.post("/api/cart/items", json={
+            "product_id": kurti.id,
+            "quantity": 1,
+            "size": "S",
+            "color": "Yellow"
+        })
+
+        # Buy Now separate item directly
+        another_kurti = Product.query.filter(Product.name.ilike("%Rayon Anarkali Kurti%")).first()
+        bn_res = self.client.post("/api/orders", json={
+            "payment_method": "ONLINE",
+            "address": {
+                "fullName": "Sai Brunda",
+                "phone": "9876543210",
+                "addressLine1": "Direct Street 1",
+                "city": "Hyderabad",
+                "state": "Telangana",
+                "postalCode": "500001"
+            },
+            "buy_now_item": {
+                "product_id": another_kurti.id,
+                "quantity": 1,
+                "size": "XL",
+                "color": "Maroon"
+            }
+        })
+        self.assertEqual(bn_res.status_code, 201)
+        self.assertEqual(bn_res.get_json()["data"]["paymentStatus"], "PAID")
+
+        # Confirm normal cart is still intact with the 1 regular item!
+        cart_res = self.client.get("/api/cart")
+        self.assertEqual(cart_res.get_json()["data"]["items_count"], 1)
+
+    def test_cancel_order_restores_stock(self):
+        """Test cancelling order marks status CANCELLED and restores product stock."""
+        self._login()
+        kurti = Product.query.filter(Product.name.ilike("%Floral Printed Cotton A-Line Kurti%")).first()
+        stock_before = kurti.stock
+
+        # Create order
+        order_res = self.client.post("/api/orders", json={
+            "payment_method": "COD",
+            "address": {
+                "fullName": "Sai Brunda",
+                "phone": "9876543210",
+                "addressLine1": "Street 4",
+                "city": "Chennai",
+                "state": "Tamil Nadu",
+                "postalCode": "600001"
+            },
+            "buy_now_item": {
+                "product_id": kurti.id,
+                "quantity": 3,
+                "size": "L",
+                "color": "Blue"
+            }
+        })
+        self.assertEqual(order_res.status_code, 201)
+        order_id = order_res.get_json()["data"]["id"]
+
+        # Confirm stock decremented by 3
+        db.session.expire_all()
+        self.assertEqual(Product.query.get(kurti.id).stock, stock_before - 3)
+
+        # Cancel order
+        cancel_res = self.client.post(f"/api/orders/{order_id}/cancel")
+        self.assertEqual(cancel_res.status_code, 200)
+
+        # Confirm stock restored to original level!
+        db.session.expire_all()
+        self.assertEqual(Product.query.get(kurti.id).stock, stock_before)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

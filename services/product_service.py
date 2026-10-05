@@ -19,6 +19,8 @@ class ProductService:
     def get_all_products(
         category_id: Optional[int] = None,
         category_name: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        brand: Optional[str] = None,
         search: Optional[str] = None,
         is_active: Optional[bool] = None,
         min_price: Optional[float] = None,
@@ -26,10 +28,13 @@ class ProductService:
         in_stock_only: Optional[bool] = None,
         min_rating: Optional[float] = None,
         sort_by: Optional[str] = None,
+        color: Optional[str] = None,
+        size: Optional[str] = None,
         page: Optional[int] = None,
         per_page: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Retrieve products with advanced filtering, search, sorting, and pagination."""
+        """Retrieve products with advanced filtering, intelligent multi-attribute search, sorting, and pagination."""
+        import re
         query = Product.query
 
         # Status filter (default to active for storefront if is_active is True)
@@ -40,21 +45,68 @@ class ProductService:
         if category_id:
             query = query.filter(Product.category_id == category_id)
 
-        # Category Name filter (case-insensitive with Shoes / Footwear synonym support)
+        # Category Name filter (case-insensitive with synonym support)
         if category_name and category_name.strip():
             cat_query = category_name.strip()
             if cat_query.lower() in ("shoes", "footwear"):
                 query = query.join(Product.category).filter(
-                    (Category.name.ilike("footwear")) | (Category.name.ilike("shoes"))
+                    (Category.name.ilike("%footwear%")) | (Category.name.ilike("%shoes%"))
+                )
+            elif cat_query.lower() in ("women", "women's", "womens", "women's fashion"):
+                query = query.join(Product.category).filter(
+                    (Category.name.ilike("%women%")) | (Category.name.ilike("%fashion%"))
+                )
+            elif cat_query.lower() in ("men", "men's", "mens", "men's fashion"):
+                query = query.join(Product.category).filter(
+                    (Category.name.ilike("%men%")) | (Category.name.ilike("%fashion%"))
                 )
             else:
-                query = query.join(Product.category).filter(Category.name.ilike(cat_query))
+                query = query.join(Product.category).filter(Category.name.ilike(f"%{cat_query}%"))
 
-        # Price range filter
+        # Subcategory filter
+        if subcategory and subcategory.strip():
+            query = query.filter(Product.subcategory.ilike(f"%{subcategory.strip()}%"))
+
+        # Brand filter
+        if brand and brand.strip():
+            query = query.filter(Product.brand.ilike(f"%{brand.strip()}%"))
+
+        # Color filter
+        if color and color.strip():
+            c_term = f"%{color.strip()}%"
+            query = query.filter(
+                (Product.colors_json.ilike(c_term)) |
+                (Product.name.ilike(c_term)) |
+                (Product.tags_json.ilike(c_term))
+            )
+
+        # Size filter
+        if size and size.strip():
+            s_term = f"%{size.strip()}%"
+            query = query.filter(Product.sizes_json.ilike(s_term))
+
+        # Intelligent Search query handling (e.g. "women kurti under 1000", "black kurti", "cotton kurti")
+        parsed_search = search
+        if search and search.strip():
+            raw_s = search.strip()
+            # Extract "under <number>" or "below <number>"
+            price_match = re.search(r'\b(under|below|less than)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)\b', raw_s, re.IGNORECASE)
+            if price_match:
+                extracted_max = float(price_match.group(2))
+                if max_price is None or extracted_max < max_price:
+                    max_price = extracted_max
+                # Remove the "under XXX" phrase from text search to match core terms
+                raw_s = re.sub(r'\b(under|below|less than)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)\b', '', raw_s, flags=re.IGNORECASE).strip()
+
+            parsed_search = raw_s
+
+        # Apply price filters
         if min_price is not None:
-            query = query.filter(Product.price >= float(min_price))
+            min_p = float(min_price)
+            query = query.filter(Product.price >= min_p)
         if max_price is not None:
-            query = query.filter(Product.price <= float(max_price))
+            max_p = float(max_price)
+            query = query.filter(Product.price <= max_p)
 
         # In-stock only filter
         if in_stock_only:
@@ -64,28 +116,44 @@ class ProductService:
         if min_rating is not None:
             query = query.filter(Product.rating >= float(min_rating))
 
-        # Keyword search across name and description
-        if search and search.strip():
-            term = f"%{search.strip()}%"
-            query = query.filter(
-                (Product.name.ilike(term)) | (Product.description.ilike(term))
-            )
+        # Keyword search across name, description, subcategory, brand, tags, specs
+        if parsed_search and parsed_search.strip():
+            keywords = [w.strip() for w in parsed_search.split() if len(w.strip()) > 1]
+            for kw in keywords:
+                term = f"%{kw}%"
+                query = query.filter(
+                    db.or_(
+                        Product.name.ilike(term),
+                        Product.description.ilike(term),
+                        Product.subcategory.ilike(term),
+                        Product.brand.ilike(term),
+                        Product.tags_json.ilike(term),
+                        Product.specifications_json.ilike(term),
+                        Product.colors_json.ilike(term),
+                    )
+                )
 
         # Sorting logic
-        if sort_by in ("price_asc", "price-low"):
+        if sort_by in ("price_asc", "price-low", "low-to-high"):
             query = query.order_by(Product.price.asc())
-        elif sort_by in ("price_desc", "price-high"):
+        elif sort_by in ("price_desc", "price-high", "high-to-low"):
             query = query.order_by(Product.price.desc())
-        elif sort_by in ("rating", "rating_desc"):
+        elif sort_by in ("rating", "rating_desc", "customer-rating"):
             query = query.order_by(Product.rating.desc())
+        elif sort_by in ("discount", "best_discount"):
+            query = query.order_by(Product.discount_percentage.desc())
+        elif sort_by in ("bestseller", "best_selling"):
+            query = query.order_by(Product.is_best_seller.desc(), Product.rating.desc())
+        elif sort_by in ("newest", "is_new"):
+            query = query.order_by(Product.is_new.desc(), Product.created_at.desc())
         elif sort_by == "stock_asc":
             query = query.order_by(Product.stock.asc())
         elif sort_by in ("name_asc", "alpha"):
-            query = query.order_by(Product.name.asc())
+            query = query.order_by(db.func.lower(Product.name).asc())
         elif sort_by == "name_desc":
-            query = query.order_by(Product.name.desc())
+            query = query.order_by(db.func.lower(Product.name).desc())
         else:
-            query = query.order_by(Product.created_at.desc())
+            query = query.order_by(Product.is_featured.desc(), Product.id.desc())
 
         # Pagination
         if page and per_page:
@@ -94,6 +162,7 @@ class ProductService:
 
         products = query.all()
         return [p.to_dict() for p in products]
+
 
     @staticmethod
     def get_related_products(product_id: int, category_id: int, limit: int = 4) -> List[Dict[str, Any]]:
@@ -424,115 +493,77 @@ class ProductService:
     # --------------------------------------------------------------------------
 
     @staticmethod
+    def get_search_suggestions(query_str: str, limit: int = 8) -> List[Dict[str, str]]:
+        """Return rich search suggestions and autocomplete items."""
+        if not query_str or len(query_str.strip()) < 1:
+            return []
+
+        q = query_str.strip().lower()
+        results = []
+        seen = set()
+
+        # Dedicated quick matches for popular categories and kurti styles
+        curated_suggestions = [
+            ("Kurtis", "Women's Fashion", "subcategory"),
+            ("Kurta sets", "Women's Fashion", "subcategory"),
+            ("Cotton Kurtis", "Women's Fashion", "kurti_style"),
+            ("Printed Kurtis", "Women's Fashion", "kurti_style"),
+            ("Anarkali Kurtis", "Women's Fashion", "kurti_style"),
+            ("Rayon Kurtis", "Women's Fashion", "kurti_style"),
+            ("Embroidered Kurtis", "Women's Fashion", "kurti_style"),
+            ("Straight Kurtis", "Women's Fashion", "kurti_style"),
+            ("A-Line Kurtis", "Women's Fashion", "kurti_style"),
+            ("Floral Kurtis", "Women's Fashion", "kurti_style"),
+            ("Office wear Kurtis", "Women's Fashion", "kurti_style"),
+            ("Party wear Kurtis", "Women's Fashion", "kurti_style"),
+            ("Casual Kurtis", "Women's Fashion", "kurti_style"),
+            ("Short Kurtis", "Women's Fashion", "kurti_style"),
+            ("Sarees", "Women's Fashion", "subcategory"),
+            ("Men's Kurtas", "Men's Fashion", "subcategory"),
+            ("Men's T-Shirts", "Men's Fashion", "subcategory"),
+            ("Sneakers", "Footwear", "subcategory"),
+            ("Headphones", "Electronics", "subcategory"),
+            ("Smart watches", "Electronics", "subcategory"),
+        ]
+
+        for text, category, s_type in curated_suggestions:
+            if q in text.lower() and text.lower() not in seen:
+                seen.add(text.lower())
+                results.append({"text": text, "category": category, "type": s_type})
+                if len(results) >= limit:
+                    return results
+
+        # Product name suggestions from DB
+        matching_prods = Product.query.filter(
+            Product.name.ilike(f"%{q}%"),
+            Product.is_active == True
+        ).limit(limit).all()
+
+        for p in matching_prods:
+            if p.name.lower() not in seen:
+                seen.add(p.name.lower())
+                results.append({
+                    "text": p.name,
+                    "category": p.category.name if p.category else "Catalog",
+                    "type": "product",
+                    "id": p.id,
+                })
+                if len(results) >= limit:
+                    break
+
+        return results
+
+    # --------------------------------------------------------------------------
+    # Initial Data Seeding
+    # --------------------------------------------------------------------------
+
+    @staticmethod
     def seed_initial_data() -> None:
-        """Seed default categories and featured products if database is empty."""
+        """Seed complete e-commerce catalog with multi-category dataset and Kurti collection."""
         try:
-            if Category.query.count() > 0:
-                return
+            from data.seed_catalog import seed_large_catalog
+            seed_large_catalog()
+        except Exception as e:
+            from utils.logger import log_error
+            log_error(f"Failed to seed catalog: {e}")
 
-            categories_data = [
-                ("Electronics", "Audio, smartphones & computing gadgets", "🎧"),
-                ("Fashion", "Men & Women trendy apparel & clothing", "🧥"),
-                ("Footwear", "Athletic sneakers, running & casual shoes", "👟"),
-                ("Watches", "Smartwatches & luxury analog timepieces", "⌚"),
-                ("Home & Living", "Modern home decor & smart living essentials", "🏠"),
-                ("Accessories", "Travel backpacks, wallets & sunglasses", "🎒"),
-            ]
-
-            created_cats = {}
-            for name, desc, icon in categories_data:
-                cat = Category(name=name, description=desc)
-                db.session.add(cat)
-                db.session.flush()
-                created_cats[name] = cat.id
-
-            products_data = [
-                {
-                    "name": "Noise-Cancelling Wireless Headphones Pro",
-                    "description": "Premium wireless over-ear headphones with active noise cancellation, 40-hour battery life, and crystal-clear acoustic fidelity.",
-                    "price": 129.99,
-                    "category_id": created_cats["Electronics"],
-                    "image": "🎧",
-                    "stock": 28,
-                    "rating": 4.9,
-                    "is_active": True,
-                },
-                {
-                    "name": "Classic Mechanical Chronograph Watch",
-                    "description": "Sapphire crystal glass with genuine leather strap, water-resistant to 50 meters with precision automatic movement.",
-                    "price": 189.50,
-                    "category_id": created_cats["Watches"],
-                    "image": "⌚",
-                    "stock": 14,
-                    "rating": 4.8,
-                    "is_active": True,
-                },
-                {
-                    "name": "Ultra-Lightweight Performance Sneakers",
-                    "description": "Ergonomic responsive cushioning engineered for everyday runs, gym sessions, and maximum all-day comfort.",
-                    "price": 79.99,
-                    "category_id": created_cats["Footwear"],
-                    "image": "👟",
-                    "stock": 45,
-                    "rating": 4.7,
-                    "is_active": True,
-                },
-                {
-                    "name": "Waterproof Urban Commuter Backpack",
-                    "description": "Weather-resistant Oxford fabric with padded 15.6-inch laptop compartment and hidden anti-theft zipper pockets.",
-                    "price": 54.00,
-                    "category_id": created_cats["Accessories"],
-                    "image": "🎒",
-                    "stock": 32,
-                    "rating": 4.8,
-                    "is_active": True,
-                },
-                {
-                    "name": "Smart Fitness Tracker Band 5",
-                    "description": "Always-on AMOLED display with heart rate monitoring, sleep analysis, SpO2 sensor, and 14-day battery life.",
-                    "price": 49.99,
-                    "category_id": created_cats["Electronics"],
-                    "image": "📱",
-                    "stock": 60,
-                    "rating": 4.6,
-                    "is_active": True,
-                },
-                {
-                    "name": "Minimalist Polarized Sunglasses",
-                    "description": "UV400 protection polarized lenses with lightweight titanium-alloy frames for crisp glare-free vision.",
-                    "price": 34.50,
-                    "category_id": created_cats["Accessories"],
-                    "image": "🕶️",
-                    "stock": 25,
-                    "rating": 4.7,
-                    "is_active": True,
-                },
-                {
-                    "name": "Ceramic Pour-Over Coffee Maker Set",
-                    "description": "Artisan handmade matte ceramic dripper with heat-resistant borosilicate glass server and reusable mesh filter.",
-                    "price": 42.00,
-                    "category_id": created_cats["Home & Living"],
-                    "image": "☕",
-                    "stock": 19,
-                    "rating": 4.9,
-                    "is_active": True,
-                },
-                {
-                    "name": "Premium Cotton Relaxed Hoodie",
-                    "description": "Crafted from 100% heavyweight French terry cotton with ribbed cuffs and fleece-lined double-layer hood.",
-                    "price": 59.00,
-                    "category_id": created_cats["Fashion"],
-                    "image": "🧥",
-                    "stock": 38,
-                    "rating": 4.8,
-                    "is_active": True,
-                },
-            ]
-
-            for item in products_data:
-                prod = Product(**item)
-                db.session.add(prod)
-
-            db.session.commit()
-        except Exception:
-            db.session.rollback()

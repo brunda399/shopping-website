@@ -33,19 +33,10 @@ def create_app(config_name: str = None) -> Flask:
         db.create_all()
         log_info("Database tables verified/created successfully")
 
-        # Safe schema migration check for SQLite tables
-        try:
-            with db.engine.connect() as conn:
-                prod_cols = [row[1] for row in conn.execute(db.text("PRAGMA table_info(products)")).fetchall()]
-                if "is_active" not in prod_cols:
-                    conn.execute(db.text("ALTER TABLE products ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
-                    conn.commit()
-                cat_cols = [row[1] for row in conn.execute(db.text("PRAGMA table_info(categories)")).fetchall()]
-                if "updated_at" not in cat_cols:
-                    conn.execute(db.text("ALTER TABLE categories ADD COLUMN updated_at DATETIME"))
-                    conn.commit()
-        except Exception:
-            pass
+        # Run comprehensive SQLite schema migrations to support all Module 7 columns
+        from utils.db_migration import run_schema_migrations
+        run_schema_migrations(app)
+
 
         # Ensure upload folder exists
         upload_folder = app.config.get("UPLOAD_FOLDER")

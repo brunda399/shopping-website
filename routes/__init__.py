@@ -226,6 +226,151 @@ def profile():
 
 
 
+@main_bp.route("/checkout", methods=["GET"])
+def checkout_page():
+    """Customer checkout view with address selection, order review, and payment."""
+    from flask import request, redirect, url_for, flash, session
+    from services.cart_service import CartService
+    from services.address_service import AddressService
+    from services.product_service import ProductService
+
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please sign in or create an account to proceed to checkout.", "warning")
+        return redirect(url_for("main.login", next=request.full_path if request.query_string else request.path))
+
+    is_buy_now = request.args.get("buy_now") == "1"
+    buy_now_item = session.get("buy_now_context") if is_buy_now else None
+
+    if is_buy_now and buy_now_item:
+        prod = ProductService.get_product_by_id(buy_now_item["product_id"])
+        if not prod:
+            flash("The requested Buy Now item is no longer available.", "error")
+            return redirect(url_for("main.products"))
+
+        qty = int(buy_now_item.get("quantity", 1))
+        unit_p = prod["sale_price"] or prod["price"]
+        item_subtotal = round(unit_p * qty, 2)
+        shipping = 0.0 if item_subtotal >= 999.0 else 50.0
+        tax = round(item_subtotal * 0.05, 2)
+        total = round(item_subtotal + shipping + tax, 2)
+
+        order_summary = {
+            "items": [{
+                "product_id": prod["id"],
+                "product": prod,
+                "name": prod["name"],
+                "image": prod["image"],
+                "quantity": qty,
+                "selected_size": buy_now_item.get("size"),
+                "selected_color": buy_now_item.get("color"),
+                "size": buy_now_item.get("size"),
+                "color": buy_now_item.get("color"),
+                "price": unit_p,
+                "unit_price": unit_p,
+                "subtotal": item_subtotal,
+            }],
+            "items_count": 1,
+            "total_quantity": qty,
+            "subtotal": item_subtotal,
+            "discount": 0.0,
+            "shipping": shipping,
+            "tax": tax,
+            "total": total,
+            "grand_total": total,
+            "is_buy_now": True,
+        }
+    else:
+        coupon_code = session.get("applied_coupon", "")
+        order_summary = CartService.get_cart_summary(user_id=user_id, coupon_code=coupon_code)
+        if order_summary["items_count"] == 0:
+            flash("Your shopping cart is currently empty. Add items before checking out.", "info")
+            return redirect(url_for("main.cart_page"))
+
+    addresses = AddressService.get_user_addresses(user_id)
+    return render_template(
+        "checkout/index.html",
+        cart=order_summary,
+        items=order_summary["items"],
+        addresses=addresses,
+        is_buy_now=bool(is_buy_now and buy_now_item),
+    )
+
+
+@main_bp.route("/buy-now", methods=["POST"])
+def buy_now():
+    """Initialize Buy Now temporary checkout context and route directly to checkout."""
+    from flask import request, redirect, url_for, session
+
+    prod_id = request.form.get("product_id") or request.form.get("id")
+    qty = request.form.get("quantity", 1)
+    size = request.form.get("selected_size") or request.form.get("size")
+    color = request.form.get("selected_color") or request.form.get("color")
+
+    if not prod_id:
+        return redirect(url_for("main.products"))
+
+    session["buy_now_context"] = {
+        "product_id": int(prod_id),
+        "quantity": int(qty),
+        "size": size,
+        "color": color,
+    }
+
+    if not session.get("user_id"):
+        return redirect(url_for("main.login", next="/checkout?buy_now=1"))
+    return redirect(url_for("main.checkout_page", buy_now=1))
+
+
+@main_bp.route("/order-confirmation/<order_number>", methods=["GET"])
+def order_confirmation(order_number: str):
+    """Customer order receipt and confirmation showcase view."""
+    from flask import abort
+    from services.order_service import OrderService
+
+    order = OrderService.get_order_by_number(order_number)
+    if not order:
+        abort(404)
+
+    return render_template("orders/confirmation.html", order=order)
+
+
+@main_bp.route("/orders", methods=["GET"])
+def orders_page():
+    """Customer order history overview."""
+    from flask import redirect, url_for, flash, session
+    from services.order_service import OrderService
+
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please sign in to view your orders.", "warning")
+        return redirect(url_for("main.login", next="/orders"))
+
+    orders = OrderService.get_user_orders(user_id)
+    return render_template("orders/index.html", orders=orders)
+
+
+@main_bp.route("/orders/<identifier>", methods=["GET"])
+def order_detail_page(identifier: str):
+    """Detailed view for a specific order with visual tracking timeline."""
+    from flask import redirect, url_for, flash, abort, session
+    from services.order_service import OrderService
+
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please sign in to view this order.", "warning")
+        return redirect(url_for("main.login", next=f"/orders/{identifier}"))
+
+    order = OrderService.get_order_by_number(identifier, user_id=user_id)
+    if not order and identifier.isdigit():
+        order = OrderService.get_order_by_id(int(identifier), user_id=user_id)
+
+    if not order:
+        abort(404)
+
+    return render_template("orders/detail.html", order=order)
+
+
 def register_routes(app):
     """Register all modular route blueprints with the Flask application."""
     from .auth_routes import auth_bp
@@ -233,6 +378,7 @@ def register_routes(app):
     from .cart_routes import cart_bp
     from .wishlist_routes import wishlist_bp
     from .order_routes import order_bp
+    from .address_routes import address_bp
     from .admin_routes import admin_bp, admin_web_bp
 
     # Register blueprints
@@ -243,5 +389,7 @@ def register_routes(app):
     app.register_blueprint(cart_bp)
     app.register_blueprint(wishlist_bp)
     app.register_blueprint(order_bp)
+    app.register_blueprint(address_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_web_bp)
+

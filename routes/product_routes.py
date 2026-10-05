@@ -14,6 +14,10 @@ def get_products():
     """Fetch product catalog with optional query, category filter, price, stock, rating, sorting, and pagination."""
     category_id = request.args.get("category_id", type=int)
     category_name = request.args.get("category") or request.args.get("category_name")
+    subcategory = request.args.get("subcategory")
+    brand = request.args.get("brand")
+    color = request.args.get("color")
+    size = request.args.get("size")
     search = request.args.get("q") or request.args.get("search")
     min_price = request.args.get("min_price", type=float)
     max_price = request.args.get("max_price", type=float)
@@ -32,6 +36,10 @@ def get_products():
     products = ProductService.get_all_products(
         category_id=category_id,
         category_name=category_name,
+        subcategory=subcategory,
+        brand=brand,
+        color=color,
+        size=size,
         search=search,
         is_active=is_active_filter,
         min_price=min_price,
@@ -58,6 +66,20 @@ def get_products():
     return jsonify(response_payload), 200
 
 
+@product_bp.route("/suggestions", methods=["GET"])
+def get_suggestions():
+    """Retrieve auto-complete search suggestions."""
+    q = request.args.get("q", "")
+    limit = request.args.get("limit", 8, type=int)
+    suggestions = ProductService.get_search_suggestions(q, limit=limit)
+    return jsonify({
+        "success": True,
+        "query": q,
+        "data": suggestions,
+    }), 200
+
+
+
 @product_bp.route("/<int:product_id>", methods=["GET"])
 def get_product(product_id: int):
     """Retrieve full details of a specific product."""
@@ -79,25 +101,128 @@ def get_product(product_id: int):
 
 
 @product_bp.route("/<int:product_id>/related", methods=["GET"])
-def get_related(product_id: int):
-    """Retrieve related products for discovery recommendations."""
-    product = ProductService.get_product_by_id(product_id, only_active=True)
+def get_related_products_endpoint(product_id: int):
+    """Retrieve related recommendations for a product."""
+    product = ProductService.get_product_by_id(product_id)
     if not product:
         return jsonify({
             "success": False,
-            "error": {
-                "code": 404,
-                "message": f"Product #{product_id} not found."
-            }
+            "error": {"code": 404, "message": f"Product #{product_id} not found."}
         }), 404
 
-    limit = request.args.get("limit", 4, type=int)
-    related = ProductService.get_related_products(product_id, product["category_id"], limit=limit)
+    limit = request.args.get("limit", default=4, type=int)
+    category_id = product.get("category_id")
+    related = ProductService.get_related_products(product_id, category_id, limit=limit)
     return jsonify({
         "success": True,
-        "count": len(related),
-        "data": related
+        "data": related,
+        "count": len(related)
     }), 200
+
+
+@product_bp.route("/<int:product_id>/reviews", methods=["GET"])
+def get_product_reviews(product_id: int):
+    """Retrieve all verified reviews and star rating distribution for a product."""
+    from models import Review
+    product = ProductService.get_product_by_id(product_id)
+    if not product:
+        return jsonify({
+            "success": False,
+            "error": {"code": 404, "message": "Product not found."}
+        }), 404
+
+    reviews = Review.query.filter_by(product_id=product_id).order_by(Review.created_at.desc()).all()
+    review_list = [r.to_dict() for r in reviews]
+
+    distribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
+    for r in reviews:
+        star = int(round(r.rating))
+        if 1 <= star <= 5:
+            distribution[star] += 1
+
+    return jsonify({
+        "success": True,
+        "product_id": product_id,
+        "count": len(review_list),
+        "rating": product["rating"],
+        "distribution": distribution,
+        "data": review_list,
+    }), 200
+
+
+@product_bp.route("/<int:product_id>/reviews", methods=["POST"])
+def submit_product_review(product_id: int):
+    """Submit a customer rating and review for a product with verification."""
+    from flask import session
+    from models import db, Review, OrderItem, Order, Product
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({
+            "success": False,
+            "error": {"code": 401, "message": "Please sign in to submit a review."}
+        }), 401
+
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({
+            "success": False,
+            "error": {"code": 404, "message": "Product not found."}
+        }), 404
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    rating = data.get("rating", 5)
+    title = (data.get("title") or "").strip()
+    comment = (data.get("comment") or "").strip()
+
+    try:
+        rating = float(rating)
+        if not (1.0 <= rating <= 5.0):
+            return jsonify({
+                "success": False,
+                "error": {"code": 400, "message": "Rating must be between 1 and 5 stars."}
+            }), 400
+    except (ValueError, TypeError):
+        return jsonify({
+            "success": False,
+            "error": {"code": 400, "message": "Rating must be a numeric value between 1 and 5."}
+        }), 400
+
+    if not comment:
+        return jsonify({
+            "success": False,
+            "error": {"code": 400, "message": "Please write a comment for your review."}
+        }), 400
+
+    # Verify purchase
+    has_purchased = OrderItem.query.join(Order).filter(
+        Order.user_id == user_id,
+        OrderItem.product_id == product_id
+    ).count() > 0
+
+    rev = Review(
+        user_id=user_id,
+        product_id=product_id,
+        rating=rating,
+        title=title if title else None,
+        comment=comment,
+        is_verified_purchase=has_purchased,
+    )
+    db.session.add(rev)
+    db.session.flush()
+
+    # Recalculate average product rating
+    all_revs = Review.query.filter_by(product_id=product_id).all()
+    avg_r = sum(r.rating for r in all_revs) / len(all_revs)
+    product.rating = round(avg_r, 1)
+    product.review_count = len(all_revs)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Review submitted successfully!",
+        "data": rev.to_dict(),
+    }), 201
+
 
 
 # ------------------------------------------------------------------------------

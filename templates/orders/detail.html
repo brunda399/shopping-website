@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Order #{{ order.orderNumber }} — ShopEase{% endblock %}
+
+{% block content %}
+<div class="order-detail-page-wrapper">
+    <div class="container order-detail-container">
+
+        <!-- Breadcrumb & Back -->
+        <div class="order-nav-bar">
+            <a href="{{ url_for('main.orders_page') }}" class="back-link">← Back to My Orders</a>
+            <span class="order-nav-title">Order #{{ order.orderNumber }}</span>
+        </div>
+
+        <!-- Tracking Timeline Card -->
+        <div class="order-tracking-card">
+            <div class="tracking-card-header">
+                <div>
+                    <span class="tracking-eyebrow">ORDER FULFILLMENT TIMELINE</span>
+                    <h2 class="tracking-title">Status: <span class="badge-status badge-{{ order.orderStatus.lower() }}">{{ order.orderStatus }}</span></h2>
+                </div>
+                <div class="tracking-est-box">
+                    <span class="est-label">Estimated Delivery</span>
+                    <strong class="est-val text-success">🚚 {{ order.estimatedDelivery or 'Upcoming' }}</strong>
+                </div>
+            </div>
+
+            <!-- Visual Stepper Timeline -->
+            <div class="tracking-stepper-track">
+                {% set steps = [
+                    ('PLACED', 'Order Placed'),
+                    ('CONFIRMED', 'Confirmed'),
+                    ('PACKED', 'Packed'),
+                    ('SHIPPED', 'Shipped'),
+                    ('OUT_FOR_DELIVERY', 'Out for Delivery'),
+                    ('DELIVERED', 'Delivered')
+                ] %}
+
+                {% set status_order = {
+                    'PLACED': 1,
+                    'CONFIRMED': 2,
+                    'PACKED': 3,
+                    'SHIPPED': 4,
+                    'OUT_FOR_DELIVERY': 5,
+                    'DELIVERED': 6,
+                    'CANCELLED': 0
+                } %}
+
+                {% set current_level = status_order.get(order.orderStatus, 1) %}
+
+                {% if order.orderStatus == 'CANCELLED' %}
+                    <div class="cancelled-banner">
+                        <span class="cancel-icon">✕</span>
+                        <div>
+                            <strong>This order has been cancelled</strong>
+                            <p>Any debited amount will be returned to the original payment source within 3-5 business days.</p>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="stepper-items-row">
+                        {% for step_code, step_label in steps %}
+                            {% set step_idx = loop.index %}
+                            <div class="stepper-step {{ 'step-done' if step_idx < current_level else ('step-current' if step_idx == current_level else 'step-pending') }}">
+                                <div class="step-icon-bubble">
+                                    {% if step_idx < current_level %}
+                                        ✓
+                                    {% elif step_idx == current_level %}
+                                        ●
+                                    {% else %}
+                                        ○
+                                    {% endif %}
+                                </div>
+                                <span class="step-name">{{ step_label }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Information Split Grid -->
+        <div class="order-info-split-grid">
+            <!-- Left: Items Ordered Table -->
+            <div class="order-items-detail-card">
+                <h3 class="card-section-title">Purchased Items ({{ order['items']|length }})</h3>
+                <div class="items-table-list">
+                    {% for item in order['items'] %}
+                    <div class="order-detail-item-row">
+                        <div class="item-thumb-box">
+                            {% if item.image and item.image.startswith('/static/') %}
+                                <img src="{{ item.image }}" alt="{{ item.productName }}">
+                            {% else %}
+                                <span class="emoji-thumb">{{ item.image or '📦' }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="item-meta-box">
+                            <h4 class="item-title">{{ item.productName }}</h4>
+                            <div class="item-variant-chips">
+                                {% if item.size %}
+                                    <span class="v-chip">Size: <strong>{{ item.size }}</strong></span>
+                                {% endif %}
+                                {% if item.color %}
+                                    <span class="v-chip">Color: <strong>{{ item.color }}</strong></span>
+                                {% endif %}
+                                <span class="v-chip">Qty: <strong>{{ item.quantity }}</strong></span>
+                            </div>
+                        </div>
+                        <div class="item-price-box">
+                            <span class="unit-price">₹{{ "%.2f"|format(item.price) }}</span>
+                            <strong class="line-subtotal">₹{{ "%.2f"|format(item.subtotal) }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if order.orderStatus in ['PLACED', 'CONFIRMED'] %}
+                <div class="order-cancel-panel">
+                    <button type="button" class="btn btn-outline btn-sm text-danger" id="btn-cancel-this-order" data-order-id="{{ order.id }}">
+                        Cancel Order
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: Shipping Address & Financial Summary -->
+            <aside class="order-summary-detail-card">
+                <!-- Delivery Details -->
+                <div class="sidebar-section">
+                    <h4 class="subcard-title">Delivery Address</h4>
+                    <div class="addr-box">
+                        <strong class="user-fullname">{{ order.shippingAddress.fullName }}</strong>
+                        <p class="user-line">{{ order.shippingAddress.addressLine1 }}</p>
+                        {% if order.shippingAddress.addressLine2 %}
+                            <p class="user-line">{{ order.shippingAddress.addressLine2 }}</p>
+                        {% endif %}
+                        <p class="user-city">{{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} - {{ order.shippingAddress.postalCode }}</p>
+                        <p class="user-phone">📞 {{ order.shippingAddress.phone }}</p>
+                    </div>
+                </div>
+
+                <!-- Payment Details -->
+                <div class="sidebar-section">
+                    <h4 class="subcard-title">Payment Method</h4>
+                    <p class="payment-method-desc">
+                        <strong>{{ order.paymentMethod }}</strong> — Status: <span class="badge-payment">{{ order.paymentStatus }}</span>
+                    </p>
+                </div>
+
+                <!-- Price Breakdown -->
+                <div class="sidebar-section">
+                    <h4 class="subcard-title">Payment Summary</h4>
+                    <div class="summary-breakdown-list">
+                        <div class="summary-row">
+                            <span class="row-label">Items Subtotal</span>
+                            <span class="row-val">₹{{ "%.2f"|format(order.subtotal) }}</span>
+                        </div>
+                        {% if order.discount > 0 %}
+                        <div class="summary-row">
+                            <span class="row-label">Discount Applied</span>
+                            <span class="row-val text-success">−₹{{ "%.2f"|format(order.discount) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="summary-row">
+                            <span class="row-label">Delivery Fee</span>
+                            <span class="row-val text-success">
+                                {% if order.shipping == 0.0 %}FREE{% else %}₹{{ "%.2f"|format(order.shipping) }}{% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="row-label">Estimated Tax (5% GST)</span>
+                            <span class="row-val">₹{{ "%.2f"|format(order.tax) }}</span>
+                        </div>
+                        <div class="summary-row total-row">
+                            <span class="row-label">Total Amount Paid</span>
+                            <strong class="row-val total-price">₹{{ "%.2f"|format(order.total) }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

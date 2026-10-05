@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Secure Checkout — ShopEase{% endblock %}
+
+{% block content %}
+<div class="checkout-page-wrapper">
+    <!-- Hero Header -->
+    <div class="catalog-hero-strip">
+        <div class="container catalog-hero-container">
+            <div class="catalog-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="{{ url_for('main.cart_page') }}">Bag</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active">Checkout</span>
+            </div>
+            <div class="catalog-hero-text">
+                <h1 class="catalog-title">Secure Checkout</h1>
+                <p class="catalog-subtitle">Confirm your delivery address, select a payment method, and complete your order.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container checkout-container">
+        <!-- Left: Checkout Forms & Steps -->
+        <div class="checkout-main-col">
+
+            <!-- Step 1: Delivery Address -->
+            <div class="checkout-card" id="step-address-card">
+                <div class="checkout-card-header">
+                    <span class="step-num">1</span>
+                    <h2 class="step-title">Delivery Address</h2>
+                    <button type="button" class="btn btn-outline btn-sm btn-add-new-address" id="btn-show-add-address">
+                        <span>+</span> Add New Address
+                    </button>
+                </div>
+
+                <!-- Existing Addresses List -->
+                <div class="address-selection-grid" id="address-list-container">
+                    {% if addresses %}
+                        {% for addr in addresses %}
+                        <label class="address-card {{ 'selected-address' if addr.is_default or loop.first else '' }}" data-id="{{ addr.id }}">
+                            <input 
+                                type="radio" 
+                                name="selected_address_id" 
+                                value="{{ addr.id }}" 
+                                {{ 'checked' if addr.is_default or loop.first else '' }}
+                                class="address-radio"
+                            >
+                            <div class="address-card-body">
+                                <div class="address-tag-row">
+                                    <span class="badge-addr-type">{{ addr.address_type }}</span>
+                                    {% if addr.is_default %}
+                                        <span class="badge-default">DEFAULT</span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="addr-name">{{ addr.full_name }}</h3>
+                                <p class="addr-line">{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
+                                {% if addr.landmark %}
+                                    <p class="addr-landmark">Landmark: {{ addr.landmark }}</p>
+                                {% endif %}
+                                <p class="addr-city">{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
+                                <p class="addr-phone">📞 {{ addr.phone }}</p>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-address-state" id="no-saved-addresses-notice">
+                            <p>No delivery address saved yet. Please add your shipping address below.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Add/Edit Address Inline Form -->
+                <div class="new-address-form-box {{ 'hidden' if addresses else '' }}" id="new-address-form-box">
+                    <h3 class="form-subheading">Shipping Details</h3>
+                    <form id="form-checkout-address" class="address-grid-form">
+                        <div class="form-group col-span-2">
+                            <label for="addr-fullname">Full Name *</label>
+                            <input type="text" id="addr-fullname" name="fullName" required placeholder="e.g. Brunda Reddy" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="addr-phone">Mobile Phone *</label>
+                            <input type="tel" id="addr-phone" name="phone" required placeholder="10-digit number" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="addr-pincode">PIN / Postal Code *</label>
+                            <input type="text" id="addr-pincode" name="postalCode" required placeholder="e.g. 560001" class="form-control">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="addr-line1">Flat, House no., Building, Street *</label>
+                            <input type="text" id="addr-line1" name="addressLine1" required placeholder="Street address or apartment" class="form-control">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="addr-line2">Area, Colony, Sector (Optional)</label>
+                            <input type="text" id="addr-line2" name="addressLine2" placeholder="Colony or area" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="addr-city">City / District *</label>
+                            <input type="text" id="addr-city" name="city" required placeholder="e.g. Bangalore" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="addr-state">State *</label>
+                            <input type="text" id="addr-state" name="state" required placeholder="e.g. Karnataka" class="form-control">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="addr-landmark">Landmark (Optional)</label>
+                            <input type="text" id="addr-landmark" name="landmark" placeholder="Near Metro station, park, etc." class="form-control">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="addr-default" name="isDefault" value="true" checked>
+                                <span>Set as my default delivery address</span>
+                            </label>
+                        </div>
+                        <div class="form-actions col-span-2">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-save-address-ajax">Save Address</button>
+                            <button type="button" class="btn btn-ghost btn-sm {{ 'hidden' if not addresses else '' }}" id="btn-cancel-address">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Step 2: Payment Method Selection -->
+            <div class="checkout-card" id="step-payment-card">
+                <div class="checkout-card-header">
+                    <span class="step-num">2</span>
+                    <h2 class="step-title">Payment Method</h2>
+                </div>
+
+                <div class="payment-methods-list">
+                    <!-- Option 1: Cash on Delivery -->
+                    <label class="payment-method-row selected-payment">
+                        <input type="radio" name="payment_method" value="COD" checked class="payment-radio">
+                        <div class="payment-row-icon">💵</div>
+                        <div class="payment-row-details">
+                            <strong class="payment-row-title">Cash on Delivery (COD)</strong>
+                            <span class="payment-row-desc">Pay easily with cash or UPI QR code at the time of delivery.</span>
+                        </div>
+                    </label>
+
+                    <!-- Option 2: Online Payment / Card / UPI Placeholder -->
+                    <label class="payment-method-row">
+                        <input type="radio" name="payment_method" value="ONLINE" class="payment-radio">
+                        <div class="payment-row-icon">💳</div>
+                        <div class="payment-row-details">
+                            <strong class="payment-row-title">Online Payment (UPI, Cards, NetBanking)</strong>
+                            <span class="payment-row-desc">Safe &amp; instant simulated gateway. No sensitive card details stored.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Step 3: Order Review Items -->
+            <div class="checkout-card" id="step-items-card">
+                <div class="checkout-card-header">
+                    <span class="step-num">3</span>
+                    <h2 class="step-title">Order Items ({{ cart.total_quantity }})</h2>
+                    <a href="{{ url_for('main.cart_page') }}" class="edit-bag-link">Edit Bag</a>
+                </div>
+
+                <div class="checkout-items-list">
+                    {% for item in items %}
+                    <div class="checkout-item-row">
+                        <div class="checkout-item-thumb">
+                            {% if item.product and item.product.image and item.product.image.startswith('/static/') %}
+                                <img src="{{ item.product.image }}" alt="{{ item.product.name }}">
+                            {% else %}
+                                <span class="thumb-emoji">{{ (item.product.image if item.product else item.image) or '📦' }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="checkout-item-info">
+                            <h4 class="checkout-item-title">{{ item.product.name if item.product else item.name }}</h4>
+                            <div class="checkout-variant-tags">
+                                {% if item.selected_size or item.size %}
+                                    <span class="variant-tag">Size: <strong>{{ item.selected_size or item.size }}</strong></span>
+                                {% endif %}
+                                {% if item.selected_color or item.color %}
+                                    <span class="variant-tag">Color: <strong>{{ item.selected_color or item.color }}</strong></span>
+                                {% endif %}
+                                <span class="variant-tag">Qty: <strong>{{ item.quantity }}</strong></span>
+                            </div>
+                        </div>
+                        <div class="checkout-item-pricing">
+                            <span class="checkout-unit-price">₹{{ "%.2f"|format(item.price or item.unit_price or 0.0) }}</span>
+                            <strong class="checkout-line-subtotal">₹{{ "%.2f"|format(item.subtotal) }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Order Summary Breakdown Sidebar -->
+        <aside class="checkout-summary-col">
+            <div class="checkout-summary-card">
+                <h3 class="summary-card-title">Price Details</h3>
+
+                <div class="summary-breakdown-list">
+                    <div class="summary-row">
+                        <span class="row-label">Price ({{ cart.total_quantity }} items)</span>
+                        <strong class="row-val" id="checkout-subtotal">₹{{ "%.2f"|format(cart.subtotal) }}</strong>
+                    </div>
+
+                    {% if cart.discount > 0 %}
+                    <div class="summary-row discount-row" id="checkout-discount-row">
+                        <span class="row-label">Discount</span>
+                        <strong class="row-val text-success" id="checkout-discount">−₹{{ "%.2f"|format(cart.discount) }}</strong>
+                    </div>
+                    {% endif %}
+
+                    <div class="summary-row">
+                        <span class="row-label">Estimated Delivery</span>
+                        <strong class="row-val text-success">
+                            {% if cart.shipping == 0.0 %}
+                                FREE
+                            {% else %}
+                                ₹{{ "%.2f"|format(cart.shipping) }}
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="row-label">Estimated Tax (5% GST)</span>
+                        <strong class="row-val" id="checkout-tax">₹{{ "%.2f"|format(cart.tax or 0.0) }}</strong>
+                    </div>
+
+                    <div class="summary-row total-row">
+                        <span class="row-label">Total Amount</span>
+                        <strong class="row-val total-price" id="checkout-total">₹{{ "%.2f"|format(cart.total) }}</strong>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="checkout-cta-box">
+                    <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-place-order" data-buy-now="{{ '1' if is_buy_now else '0' }}">
+                        <span>🔒 Place Order</span>
+                    </button>
+                    <div class="order-submit-status hidden" id="order-submit-spinner">
+                        <span class="spinner-dot"></span> Processing order securely...
+                    </div>
+                </div>
+
+                <!-- Guarantee Pills -->
+                <div class="summary-trust-badges">
+                    <div class="trust-pill"><span>🔒</span> 256-Bit SSL Secured</div>
+                    <div class="trust-pill"><span>🔄</span> 100% Purchase Protection</div>
+                    <div class="trust-pill"><span>🚚</span> Direct Express Dispatch</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

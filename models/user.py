@@ -24,6 +24,9 @@ class User(db.Model):
     cart = db.relationship("Cart", backref="user", uselist=False, cascade="all, delete-orphan")
     wishlist_items = db.relationship("Wishlist", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     orders = db.relationship("Order", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    addresses = db.relationship("Address", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    reviews = db.relationship("Review", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+
 
     def set_password(self, password: str) -> None:
         """Hash and store user password."""

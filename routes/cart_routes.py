@@ -29,11 +29,14 @@ def get_cart():
 
 @cart_bp.route("/items", methods=["POST"])
 def add_to_cart():
-    """Add a product to the shopping cart with quantity and inventory validation."""
+    """Add a product variant to the shopping cart with quantity and inventory validation."""
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     
-    product_id = data.get("product_id")
+    product_id = data.get("product_id") or data.get("id")
     quantity = data.get("quantity", 1)
+    selected_size = data.get("selected_size") or data.get("size")
+    selected_color = data.get("selected_color") or data.get("color")
+    variant_id = data.get("variant_id")
 
     if not product_id:
         return jsonify({
@@ -53,7 +56,14 @@ def add_to_cart():
     user_id = session.get("user_id")
 
     if user_id:
-        success, message, item = CartService.add_to_cart(user_id, product_id, quantity)
+        success, message, item = CartService.add_to_cart(
+            user_id=user_id,
+            product_id=product_id,
+            quantity=quantity,
+            selected_size=selected_size,
+            selected_color=selected_color,
+            variant_id=variant_id,
+        )
         if not success:
             return jsonify({
                 "success": False,
@@ -89,15 +99,21 @@ def add_to_cart():
                 "error": {"code": 400, "message": f"Cannot add {quantity} units. Only {product.stock} units in stock."}
             }), 400
 
+        unit_p = product.effective_price
         guest_item = {
             "product_id": product.id,
             "name": product.name,
-            "price": round(float(product.price), 2),
+            "price": unit_p,
             "image": product.image,
             "category_name": product.category.name if product.category else "General",
             "quantity": quantity,
+            "selected_size": selected_size,
+            "selected_color": selected_color,
+            "size": selected_size,
+            "color": selected_color,
+            "variant_id": variant_id,
             "stock": product.stock,
-            "subtotal": round(float(product.price * quantity), 2),
+            "subtotal": round(float(unit_p * quantity), 2),
         }
 
         return jsonify({
@@ -105,6 +121,7 @@ def add_to_cart():
             "message": f"Added {product.name} to bag.",
             "data": guest_item
         }), 200
+
 
 
 @cart_bp.route("/items/<int:product_id>", methods=["PUT", "PATCH"])

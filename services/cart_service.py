@@ -43,7 +43,7 @@ class CartService:
         guest_items: Optional[List[Dict[str, Any]]] = None,
         coupon_code: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Calculate complete cart totals, item details, shipping, discounts, and item counts."""
+        """Calculate complete cart totals, item details, shipping, discounts, tax, and item counts."""
         items_list = []
         subtotal = 0.0
         total_quantity = 0
@@ -58,17 +58,18 @@ class CartService:
                     total_quantity += itm.quantity
                     items_list.append(item_dict)
                 elif itm.product and not itm.product.is_active:
-                    # Inactive item: mark notice or auto-remove
                     db.session.delete(itm)
             db.session.commit()
         elif guest_items:
             for g_item in guest_items:
                 p_id = g_item.get("product_id") or g_item.get("id")
                 qty = int(g_item.get("quantity", 1))
+                size = g_item.get("size") or g_item.get("selected_size")
+                color = g_item.get("color") or g_item.get("selected_color")
                 if p_id and qty > 0:
                     prod = Product.query.get(p_id)
                     if prod and prod.is_active:
-                        item_subtotal = round(float(prod.price * qty), 2)
+                        item_subtotal = round(float(prod.effective_price * qty), 2)
                         subtotal += item_subtotal
                         total_quantity += qty
                         items_list.append({
@@ -76,15 +77,21 @@ class CartService:
                             "product_id": prod.id,
                             "product": prod.to_dict(),
                             "quantity": qty,
+                            "selected_size": size,
+                            "selected_color": color,
+                            "size": size,
+                            "color": color,
+                            "price": prod.effective_price,
+                            "unit_price": prod.effective_price,
                             "subtotal": item_subtotal,
                         })
 
         subtotal = round(subtotal, 2)
 
-        # Shipping logic: Free shipping over $50, else $5.00 flat (0 if cart empty)
+        # Shipping logic: Free shipping over 50.0, else 5.0
         shipping = 0.0
         if subtotal > 0:
-            shipping = 0.0 if subtotal >= 50.0 else 5.00
+            shipping = 0.0 if subtotal >= 50.0 else 5.0
 
         # Coupon Discount calculation
         discount_amount = 0.0
@@ -95,7 +102,10 @@ class CartService:
                 discount_amount = disc
                 coupon_details = details
 
-        total_amount = max(0.0, round(subtotal - discount_amount + shipping, 2))
+        # Tax: included in item prices (0.0 added tax)
+        tax = 0.0
+
+        total_amount = max(0.0, round(subtotal - discount_amount + shipping + tax, 2))
 
         return {
             "items": items_list,
@@ -107,8 +117,11 @@ class CartService:
             "free_shipping_threshold": 50.0,
             "amount_needed_for_free_shipping": max(0.0, round(50.0 - subtotal, 2)) if subtotal < 50.0 else 0.0,
             "discount": discount_amount,
+            "tax": tax,
             "coupon": coupon_details,
             "total": total_amount,
+            "grand_total": total_amount,
+            "currency": "INR",
         }
 
     @classmethod
@@ -116,9 +129,12 @@ class CartService:
         cls,
         user_id: int,
         product_id: int,
-        quantity: int = 1
+        quantity: int = 1,
+        selected_size: Optional[str] = None,
+        selected_color: Optional[str] = None,
+        variant_id: Optional[str] = None,
     ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-        """Add product to user's cart with inventory and status validation."""
+        """Add product variant to user's cart with inventory validation."""
         if quantity <= 0:
             return False, "Quantity must be at least 1.", None
 
@@ -130,7 +146,20 @@ class CartService:
             return False, f"Sorry, '{product.name}' is currently out of stock.", None
 
         cart = cls.get_or_create_cart(user_id)
-        cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=product.id).first()
+
+        # Match item by cart_id, product_id AND specific variant options
+        query = CartItem.query.filter_by(cart_id=cart.id, product_id=product.id)
+        if selected_size:
+            query = query.filter_by(selected_size=selected_size)
+        else:
+            query = query.filter((CartItem.selected_size.is_(None)) | (CartItem.selected_size == ""))
+            
+        if selected_color:
+            query = query.filter_by(selected_color=selected_color)
+        else:
+            query = query.filter((CartItem.selected_color.is_(None)) | (CartItem.selected_color == ""))
+
+        cart_item = query.first()
 
         current_qty = cart_item.quantity if cart_item else 0
         new_qty = current_qty + quantity
@@ -144,7 +173,14 @@ class CartService:
         if cart_item:
             cart_item.quantity = new_qty
         else:
-            cart_item = CartItem(cart_id=cart.id, product_id=product.id, quantity=new_qty)
+            cart_item = CartItem(
+                cart_id=cart.id,
+                product_id=product.id,
+                quantity=new_qty,
+                selected_size=selected_size,
+                selected_color=selected_color,
+                variant_id=variant_id,
+            )
             db.session.add(cart_item)
 
         db.session.commit()
@@ -154,12 +190,17 @@ class CartService:
     def update_cart_item(
         cls,
         user_id: int,
-        product_id: int,
+        item_id: int,
         quantity: int
     ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-        """Update quantity of an existing item in the user's cart."""
+        """Update quantity of an existing item in the user's cart (by item_id or product_id fallback)."""
         cart = cls.get_or_create_cart(user_id)
-        cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=product_id).first()
+        
+        # Try finding by CartItem.id first
+        cart_item = CartItem.query.filter_by(cart_id=cart.id, id=item_id).first()
+        if not cart_item:
+            # Fallback to product_id
+            cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=item_id).first()
 
         if not cart_item:
             return False, "Item not found in cart.", None
@@ -185,10 +226,12 @@ class CartService:
         return True, f"Updated quantity to {quantity}.", cart_item.to_dict()
 
     @classmethod
-    def remove_from_cart(cls, user_id: int, product_id: int) -> Tuple[bool, str]:
-        """Remove a product from the user's cart."""
+    def remove_from_cart(cls, user_id: int, item_id: int) -> Tuple[bool, str]:
+        """Remove a product or item from the user's cart (supports both item_id and product_id)."""
         cart = cls.get_or_create_cart(user_id)
-        cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=product_id).first()
+        cart_item = CartItem.query.filter_by(cart_id=cart.id, id=item_id).first()
+        if not cart_item:
+            cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=item_id).first()
 
         if not cart_item:
             return False, "Item not found in cart."
@@ -205,6 +248,7 @@ class CartService:
         CartItem.query.filter_by(cart_id=cart.id).delete()
         db.session.commit()
         return True, "Cart has been cleared."
+
 
     @classmethod
     def validate_coupon(
