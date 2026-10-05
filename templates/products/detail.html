@@ -114,14 +114,37 @@
 
                 <!-- Action Button Controls -->
                 <div class="detail-actions-panel">
-                    <button type="button" class="btn btn-outline detail-wishlist-btn" id="btn-detail-wishlist" data-id="{{ product.id }}" data-name="{{ product.name }}">
-                        <span class="heart-icon">🤍</span>
-                        <span id="detail-wishlist-label">Add to Wishlist</span>
-                    </button>
+                    {% if product.stock > 0 %}
+                    <div class="detail-cart-action-row">
+                        <div class="detail-qty-group">
+                            <label for="detail-qty-input" class="qty-label">Qty:</label>
+                            <div class="qty-control-box">
+                                <button type="button" class="btn-qty" id="detail-qty-dec">−</button>
+                                <input type="number" id="detail-qty-input" class="qty-input" value="1" min="1" max="{{ product.stock }}" aria-label="Purchase quantity">
+                                <button type="button" class="btn-qty" id="detail-qty-inc" max="{{ product.stock }}">+</button>
+                            </div>
+                        </div>
 
-                    <a href="{{ url_for('main.products') }}" class="btn btn-secondary detail-back-btn">
-                        <span>←</span> Back to Products
-                    </a>
+                        <button type="button" class="btn btn-primary btn-lg detail-add-cart-btn" id="btn-detail-add-cart" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image }}" data-category="{{ product.category_name or 'General' }}" data-stock="{{ product.stock }}">
+                            <span>🛒</span> Add to Cart
+                        </button>
+                    </div>
+                    {% else %}
+                    <button type="button" class="btn btn-secondary btn-lg" disabled>
+                        <span>✕</span> Currently Out of Stock
+                    </button>
+                    {% endif %}
+
+                    <div class="detail-secondary-actions">
+                        <button type="button" class="btn btn-outline detail-wishlist-btn" id="btn-detail-wishlist" data-id="{{ product.id }}" data-name="{{ product.name }}">
+                            <span class="heart-icon">🤍</span>
+                            <span id="detail-wishlist-label">Add to Wishlist</span>
+                        </button>
+
+                        <a href="{{ url_for('main.products') }}" class="btn btn-ghost detail-back-btn">
+                            <span>←</span> Back to Catalog
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Trust Guarantee Perks Grid -->
@@ -226,7 +249,58 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Wishlist binding for product detail page
+    // 1. Quantity Selector (+/-)
+    const btnInc = document.getElementById('detail-qty-inc');
+    const btnDec = document.getElementById('detail-qty-dec');
+    const qtyInput = document.getElementById('detail-qty-input');
+    const btnAddCart = document.getElementById('btn-detail-add-cart');
+
+    if (btnInc && qtyInput) {
+        btnInc.addEventListener('click', () => {
+            const current = parseInt(qtyInput.value) || 1;
+            const max = parseInt(btnInc.getAttribute('max')) || 999;
+            if (current < max) {
+                qtyInput.value = current + 1;
+            } else {
+                showToast(`Maximum available stock is ${max}.`, 'warning');
+            }
+        });
+    }
+
+    if (btnDec && qtyInput) {
+        btnDec.addEventListener('click', () => {
+            const current = parseInt(qtyInput.value) || 1;
+            if (current > 1) {
+                qtyInput.value = current - 1;
+            }
+        });
+    }
+
+    // 2. Add to Cart Button Click
+    if (btnAddCart) {
+        btnAddCart.addEventListener('click', async () => {
+            const id = btnAddCart.getAttribute('data-id');
+            const name = btnAddCart.getAttribute('data-name');
+            const price = parseFloat(btnAddCart.getAttribute('data-price')) || 0;
+            const image = btnAddCart.getAttribute('data-image');
+            const category = btnAddCart.getAttribute('data-category');
+            const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
+
+            if (window.AppState) {
+                await AppState.addToCart({
+                    id: parseInt(id),
+                    product_id: parseInt(id),
+                    name,
+                    price,
+                    image,
+                    category,
+                    quantity: qty
+                });
+            }
+        });
+    }
+
+    // 3. Wishlist binding for product detail page
     const btnWishlist = document.getElementById('btn-detail-wishlist');
     const lblWishlist = document.getElementById('detail-wishlist-label');
 
@@ -245,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWishlistButton();
 
         btnWishlist.addEventListener('click', () => {
-            const added = AppState.toggleWishlist({ id, name });
+            AppState.toggleWishlist({ id, name });
             updateWishlistButton();
         });
     }

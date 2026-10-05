@@ -362,15 +362,44 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${stockBadge}
                             </div>
 
-                            <a href="/products/${product.id}" class="btn btn-outline btn-sm btn-view-details" aria-label="View details for ${product.name}">
-                                <span>View Details</span>
-                                <span class="btn-arrow">→</span>
-                            </a>
+                            <div class="product-card-actions">
+                                <button type="button" class="btn btn-primary btn-sm btn-card-add-cart" data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-image="${product.image}" data-category="${product.category_name || 'General'}" ${isOut ? 'disabled' : ''} aria-label="Add ${product.name} to shopping bag">
+                                    <span>🛒</span> Add
+                                </button>
+                                <a href="/products/${product.id}" class="btn btn-outline btn-sm btn-view-details" aria-label="View details for ${product.name}">
+                                    <span>View Details</span>
+                                    <span class="btn-arrow">→</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
+
+        // Bind Add to Cart listeners
+        gridEl.querySelectorAll('.btn-card-add-cart').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const price = parseFloat(btn.getAttribute('data-price')) || 0;
+                const image = btn.getAttribute('data-image');
+                const category = btn.getAttribute('data-category');
+
+                if (window.AppState && AppState.addToCart) {
+                    AppState.addToCart({
+                        id: parseInt(id),
+                        product_id: parseInt(id),
+                        name,
+                        price,
+                        image,
+                        category,
+                        quantity: 1
+                    });
+                }
+            };
+        });
 
         // Bind wishlist listeners
         gridEl.querySelectorAll('.wishlist-toggle-btn').forEach(btn => {

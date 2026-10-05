@@ -41,6 +41,8 @@ class CartItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     quantity = db.Column(db.Integer, default=1, nullable=False)
 
+    # Relationship product is automatically populated by Product.cart_items backref
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,

@@ -941,6 +941,257 @@ class Module4ProductDiscoveryTestCase(unittest.TestCase):
         self.assertEqual(data["pagination"]["per_page"], 3)
 
 
+class Module5ShoppingCartTestCase(unittest.TestCase):
+    """Test suite validating Module 5 Shopping Cart System requirements."""
+
+    def setUp(self):
+        """Set up test client, in-memory SQLite database, and seed data."""
+        self.app = create_app("testing")
+        self.client = self.app.test_client()
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+        # Seed categories
+        self.cat = Category(name="Electronics", description="Gadgets and tech")
+        db.session.add(self.cat)
+        db.session.flush()
+
+        # Seed products
+        self.prod1 = Product(
+            name="Wireless Noise-Canceling Headphones",
+            description="Premium audio",
+            price=120.00,
+            stock=10,
+            category_id=self.cat.id,
+            image="🎧",
+            is_active=True
+        )
+        self.prod2 = Product(
+            name="Smartphone Fast Charger Cable",
+            description="Durable braided cable",
+            price=15.00,
+            stock=25,
+            category_id=self.cat.id,
+            image="🔌",
+            is_active=True
+        )
+        self.prod_out_of_stock = Product(
+            name="Limited Edition Smart Watch",
+            description="Sold out item",
+            price=250.00,
+            stock=0,
+            category_id=self.cat.id,
+            image="⌚",
+            is_active=True
+        )
+        self.prod_inactive = Product(
+            name="Discontinued Item",
+            description="No longer sold",
+            price=50.00,
+            stock=5,
+            category_id=self.cat.id,
+            image="📦",
+            is_active=False
+        )
+
+        # Seed test user
+        self.user = User(
+            name="Cart Tester",
+            email="carttester@example.com",
+            role=User.ROLE_USER
+        )
+        self.user.set_password("Secret123!")
+
+        db.session.add_all([self.prod1, self.prod2, self.prod_out_of_stock, self.prod_inactive, self.user])
+        db.session.commit()
+
+    def tearDown(self):
+        """Clean up database session and drop all tables."""
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    def _login(self):
+        """Helper to establish an authenticated session for self.user."""
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = self.user.id
+            sess["user_name"] = self.user.name
+            sess["user_email"] = self.user.email
+            sess["user_role"] = self.user.role
+
+    def test_cart_status_endpoint(self):
+        """Verify GET /api/cart/status returns 200 and operational health message."""
+        res = self.client.get("/api/cart/status")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertIn("Module 5 Active", data.get("message"))
+
+    def test_cart_html_page_renders_successfully(self):
+        """Verify GET /cart returns 200 with complete cart view and summary elements."""
+        res = self.client.get("/cart")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Shopping Bag", res.data)
+        self.assertIn(b"Order Summary", res.data)
+        self.assertIn(b"Have a Promo Code?", res.data)
+
+    def test_api_cart_empty_state(self):
+        """Verify GET /api/cart for guest returns 0 items and 0 subtotal."""
+        res = self.client.get("/api/cart")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        cart = data.get("data", {})
+        self.assertEqual(cart.get("items_count"), 0)
+        self.assertEqual(cart.get("total_quantity"), 0)
+        self.assertEqual(cart.get("subtotal"), 0.0)
+        self.assertEqual(cart.get("total"), 0.0)
+
+    def test_guest_add_to_cart_success(self):
+        """Verify POST /api/cart/items succeeds for valid product and quantity within stock."""
+        res = self.client.post("/api/cart/items", json={
+            "product_id": self.prod1.id,
+            "quantity": 2
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data["data"]["product_id"], self.prod1.id)
+        self.assertEqual(data["data"]["quantity"], 2)
+        self.assertEqual(data["data"]["subtotal"], 240.00)
+
+    def test_guest_add_to_cart_exceeds_stock(self):
+        """Verify POST /api/cart/items rejects quantity exceeding available inventory."""
+        res = self.client.post("/api/cart/items", json={
+            "product_id": self.prod1.id,
+            "quantity": 999
+        })
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertFalse(data.get("success"))
+        self.assertIn("units in stock", data["error"]["message"])
+
+    def test_guest_add_to_cart_out_of_stock_and_inactive(self):
+        """Verify adding out-of-stock or inactive products is rejected."""
+        # Out of stock
+        res_oos = self.client.post("/api/cart/items", json={
+            "product_id": self.prod_out_of_stock.id,
+            "quantity": 1
+        })
+        self.assertEqual(res_oos.status_code, 400)
+        self.assertIn("out of stock", res_oos.get_json()["error"]["message"])
+
+        # Inactive product
+        res_inact = self.client.post("/api/cart/items", json={
+            "product_id": self.prod_inactive.id,
+            "quantity": 1
+        })
+        self.assertEqual(res_inact.status_code, 404)
+
+    def test_authenticated_user_cart_crud_lifecycle(self):
+        """Verify end-to-end cart lifecycle: add, view, update quantity, remove item."""
+        self._login()
+
+        # 1. Add item
+        res_add = self.client.post("/api/cart/items", json={
+            "product_id": self.prod2.id,
+            "quantity": 2
+        })
+        self.assertEqual(res_add.status_code, 200)
+        self.assertEqual(res_add.get_json()["data"]["quantity"], 2)
+
+        # 2. View cart
+        res_view = self.client.get("/api/cart")
+        self.assertEqual(res_view.status_code, 200)
+        cart_data = res_view.get_json()["data"]
+        self.assertEqual(cart_data["items_count"], 1)
+        self.assertEqual(cart_data["total_quantity"], 2)
+        self.assertEqual(cart_data["subtotal"], 30.00)
+        # Subtotal < 50 => shipping = 5.00
+        self.assertEqual(cart_data["shipping"], 5.00)
+        self.assertEqual(cart_data["total"], 35.00)
+
+        # 3. Update quantity
+        res_upd = self.client.put(f"/api/cart/items/{self.prod2.id}", json={
+            "quantity": 5
+        })
+        self.assertEqual(res_upd.status_code, 200)
+        cart_upd = res_upd.get_json()["cart"]
+        self.assertEqual(cart_upd["total_quantity"], 5)
+        self.assertEqual(cart_upd["subtotal"], 75.00)
+        # Subtotal >= 50 => free shipping!
+        self.assertEqual(cart_upd["shipping"], 0.0)
+        self.assertTrue(cart_upd["free_shipping_eligible"])
+
+        # 4. Remove item
+        res_del = self.client.delete(f"/api/cart/items/{self.prod2.id}")
+        self.assertEqual(res_del.status_code, 200)
+        self.assertEqual(res_del.get_json()["cart"]["items_count"], 0)
+
+    def test_clear_cart(self):
+        """Verify DELETE /api/cart empties all items from user cart."""
+        self._login()
+        self.client.post("/api/cart/items", json={"product_id": self.prod1.id, "quantity": 1})
+        self.client.post("/api/cart/items", json={"product_id": self.prod2.id, "quantity": 1})
+
+        # Clear cart
+        res_clear = self.client.delete("/api/cart")
+        self.assertEqual(res_clear.status_code, 200)
+        self.assertEqual(res_clear.get_json()["cart"]["items_count"], 0)
+
+        # Verify DB is clean
+        res_get = self.client.get("/api/cart")
+        self.assertEqual(res_get.get_json()["data"]["items_count"], 0)
+
+    def test_promotional_coupon_application_and_removal(self):
+        """Verify valid coupon codes apply discount, invalid codes fail, and deletion removes discount."""
+        self._login()
+        # Add prod1 ($120.00)
+        self.client.post("/api/cart/items", json={"product_id": self.prod1.id, "quantity": 1})
+
+        # Apply invalid coupon
+        res_invalid = self.client.post("/api/cart/coupon", json={"coupon_code": "INVALID_CODE"})
+        self.assertEqual(res_invalid.status_code, 400)
+
+        # Apply EASE50 (50% off capped at $50)
+        res_ease50 = self.client.post("/api/cart/coupon", json={"coupon_code": "EASE50"})
+        self.assertEqual(res_ease50.status_code, 200)
+        coupon_data = res_ease50.get_json()["data"]
+        self.assertEqual(coupon_data["code"], "EASE50")
+        self.assertEqual(coupon_data["discount_amount"], 50.00)
+
+        # Check cart summary reflects discount
+        res_cart = self.client.get("/api/cart")
+        cart_data = res_cart.get_json()["data"]
+        self.assertEqual(cart_data["discount"], 50.00)
+        self.assertEqual(cart_data["total"], 70.00)
+
+        # Remove coupon
+        res_rem = self.client.delete("/api/cart/coupon")
+        self.assertEqual(res_rem.status_code, 200)
+
+        res_cart2 = self.client.get("/api/cart")
+        self.assertEqual(res_cart2.get_json()["data"]["discount"], 0.0)
+
+    def test_guest_cart_synchronization(self):
+        """Verify POST /api/cart/sync merges guest items into user cart upon login."""
+        self._login()
+        guest_payload = {
+            "items": [
+                {"product_id": self.prod1.id, "quantity": 1},
+                {"product_id": self.prod2.id, "quantity": 3}
+            ]
+        }
+        res_sync = self.client.post("/api/cart/sync", json=guest_payload)
+        self.assertEqual(res_sync.status_code, 200)
+        summary = res_sync.get_json()["data"]
+        self.assertEqual(summary["items_count"], 2)
+        self.assertEqual(summary["total_quantity"], 4)
+        expected_subtotal = round(120.00 + (15.00 * 3), 2)
+        self.assertEqual(summary["subtotal"], expected_subtotal)
+
+
 if __name__ == "__main__":
     unittest.main()
 

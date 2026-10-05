@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-authenticated="{{ 'true' if current_user else 'false' }}">
     <!-- Top Announcement Bar -->
     <div class="announcement-bar" id="announcement-bar">
         <div class="container announcement-content">
@@ -345,11 +345,11 @@
             </div>
 
             <div class="cart-footer-actions">
-                <button class="btn btn-primary btn-block" id="cart-checkout-btn">
-                    <span>Proceed to Checkout</span>
+                <a href="{{ url_for('main.cart_page') }}" class="btn btn-primary btn-block" id="cart-checkout-btn">
+                    <span>View Bag &amp; Checkout</span>
                     <span class="btn-arrow">→</span>
-                </button>
-                <button class="btn btn-ghost btn-sm btn-block" id="cart-continue-btn">
+                </a>
+                <button type="button" class="btn btn-ghost btn-sm btn-block" id="cart-continue-btn">
                     Continue Shopping
                 </button>
             </div>

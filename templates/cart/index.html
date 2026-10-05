@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Bag &amp; Cart — ShopEase{% endblock %}
+
+{% block content %}
+<div class="cart-page-wrapper">
+    <!-- Breadcrumb & Header -->
+    <div class="catalog-hero-strip">
+        <div class="container catalog-hero-container">
+            <div class="catalog-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-active">Shopping Bag</span>
+            </div>
+            <div class="catalog-hero-text">
+                <h1 class="catalog-title">Your Shopping Bag</h1>
+                <p class="catalog-subtitle">Review your curated items, apply promo codes, and proceed to secure checkout.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container cart-layout-container">
+        <!-- Main Cart Items Column -->
+        <div class="cart-main-col">
+            <!-- Free Shipping Progress Bar -->
+            <div class="shipping-progress-card" id="cart-shipping-banner">
+                <div class="shipping-progress-header">
+                    <span class="shipping-progress-icon">🚚</span>
+                    <span class="shipping-progress-text" id="shipping-progress-text">
+                        {% if cart.free_shipping_eligible %}
+                            🎉 <strong>Congratulations!</strong> You qualify for <strong>FREE Express Shipping</strong>!
+                        {% else %}
+                            Add <strong>${{ "%.2f"|format(cart.amount_needed_for_free_shipping) }}</strong> more to unlock <strong>FREE Express Shipping</strong>!
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="shipping-progress-track">
+                    {% set pct = [((cart.subtotal / 50.0) * 100)|round, 100]|min %}
+                    <div class="shipping-progress-fill" id="shipping-progress-bar" style="width: {{ pct }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Empty Cart View -->
+            <div class="cart-empty-view {{ 'hidden' if cart_items else '' }}" id="full-cart-empty-state">
+                <div class="empty-icon-wrap">🛒</div>
+                <h2>Your Shopping Bag is Empty</h2>
+                <p>Looks like you haven't added anything to your cart yet. Explore our top categories and discover trending essentials!</p>
+                <div class="empty-actions">
+                    <a href="{{ url_for('main.products') }}" class="btn btn-primary">
+                        <span>⚡</span> Explore Products
+                    </a>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-outline">
+                        Back to Home
+                    </a>
+                </div>
+            </div>
+
+            <!-- Populated Cart Table -->
+            <div class="cart-table-card {{ 'hidden' if not cart_items else '' }}" id="full-cart-table-wrapper">
+                <div class="cart-table-header">
+                    <span class="col-head col-prod">Product</span>
+                    <span class="col-head col-price">Unit Price</span>
+                    <span class="col-head col-qty">Quantity</span>
+                    <span class="col-head col-subtotal">Subtotal</span>
+                    <span class="col-head col-action">Remove</span>
+                </div>
+
+                <div class="cart-items-body" id="full-cart-items-list">
+                    {% for item in cart_items %}
+                    <div class="cart-item-row" data-id="{{ item.product.id }}">
+                        <div class="cart-item-info-col">
+                            <a href="{{ url_for('main.product_detail', product_id=item.product.id) }}" class="cart-item-media">
+                                {% if item.product.image and item.product.image.startswith('/static/') %}
+                                    <img src="{{ item.product.image }}" alt="{{ item.product.name }}">
+                                {% else %}
+                                    <span class="cart-emoji">{{ item.product.image or '📦' }}</span>
+                                {% endif %}
+                            </a>
+                            <div class="cart-item-meta">
+                                <span class="cart-item-cat">{{ item.product.category_name or 'General' }}</span>
+                                <h4 class="cart-item-name">
+                                    <a href="{{ url_for('main.product_detail', product_id=item.product.id) }}">{{ item.product.name }}</a>
+                                </h4>
+                                <span class="cart-stock-status in-stock">✓ Available ({{ item.product.stock }} in stock)</span>
+                            </div>
+                        </div>
+
+                        <div class="cart-item-price-col">
+                            <span class="price-val">${{ "%.2f"|format(item.product.price) }}</span>
+                        </div>
+
+                        <div class="cart-item-qty-col">
+                            <div class="qty-control-box">
+                                <button type="button" class="btn-qty btn-qty-dec" data-id="{{ item.product.id }}" aria-label="Decrease quantity">−</button>
+                                <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-id="{{ item.product.id }}" aria-label="Item quantity">
+                                <button type="button" class="btn-qty btn-qty-inc" data-id="{{ item.product.id }}" max="{{ item.product.stock }}" aria-label="Increase quantity">+</button>
+                            </div>
+                        </div>
+
+                        <div class="cart-item-subtotal-col">
+                            <strong class="item-subtotal-val">${{ "%.2f"|format(item.subtotal) }}</strong>
+                        </div>
+
+                        <div class="cart-item-remove-col">
+                            <button type="button" class="btn-remove-item" data-id="{{ item.product.id }}" title="Remove item" aria-label="Remove item from cart">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="cart-table-footer">
+                    <button type="button" class="btn btn-outline btn-sm btn-clear-cart" id="btn-clear-cart">
+                        <span>🗑️</span> Clear Entire Cart
+                    </button>
+                    <a href="{{ url_for('main.products') }}" class="btn btn-ghost btn-sm">
+                        <span>←</span> Continue Shopping
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Order Summary Column -->
+        <aside class="cart-summary-col">
+            <div class="cart-summary-card">
+                <h3 class="summary-card-title">Order Summary</h3>
+
+                <!-- Coupon Input Form -->
+                <div class="cart-coupon-card">
+                    <label for="page-coupon-input" class="coupon-label">Have a Promo Code?</label>
+                    <div class="coupon-input-wrap">
+                        <input 
+                            type="text" 
+                            id="page-coupon-input" 
+                            class="coupon-field" 
+                            placeholder="Enter code (e.g. EASE50)" 
+                            value="{{ cart.coupon.code if cart.coupon else '' }}"
+                            uppercase
+                        >
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-page-apply-coupon">Apply</button>
+                    </div>
+                    <div class="coupon-feedback-msg {{ '' if cart.coupon else 'hidden' }}" id="page-coupon-feedback">
+                        {% if cart.coupon %}
+                            <span class="text-success">✅ Applied: {{ cart.coupon.description }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Price Calculations Breakdown -->
+                <div class="summary-breakdown-list">
+                    <div class="summary-row">
+                        <span class="row-label">Subtotal (<span id="summary-items-count">{{ cart.total_quantity }}</span> items)</span>
+                        <strong class="row-val" id="summary-subtotal">${{ "%.2f"|format(cart.subtotal) }}</strong>
+                    </div>
+
+                    <div class="summary-row discount-row {{ '' if cart.discount > 0 else 'hidden' }}" id="summary-discount-row">
+                        <span class="row-label">Promo Discount ({{ cart.coupon.code if cart.coupon else '' }})</span>
+                        <strong class="row-val text-success" id="summary-discount">-${{ "%.2f"|format(cart.discount) }}</strong>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="row-label">Estimated Shipping</span>
+                        <strong class="row-val" id="summary-shipping">
+                            {% if cart.shipping == 0.0 %}
+                                <span class="text-success">FREE</span>
+                            {% else %}
+                                ${{ "%.2f"|format(cart.shipping) }}
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="summary-row total-row">
+                        <span class="row-label">Total Amount</span>
+                        <strong class="row-val total-price" id="summary-total">${{ "%.2f"|format(cart.total) }}</strong>
+                    </div>
+                </div>
+
+                <!-- Checkout CTA -->
+                <div class="summary-checkout-actions">
+                    <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-cart-checkout">
+                        <span>Proceed to Checkout</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <p class="tax-note">Taxes and final shipping calculated at checkout.</p>
+                </div>
+
+                <!-- Trust Guarantee Icons -->
+                <div class="summary-trust-badges">
+                    <div class="trust-pill">
+                        <span>🔒</span> 256-Bit SSL Encryption
+                    </div>
+                    <div class="trust-pill">
+                        <span>🔄</span> 30-Day Easy Returns
+                    </div>
+                    <div class="trust-pill">
+                        <span>🛡️</span> 100% Buyer Protection
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- Client-Side Cart Controller Script                                      -->
+<!-- ======================================================================= -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Quantity Adjustments (+/-)
+    document.querySelectorAll('.btn-qty-inc').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const row = btn.closest('.cart-item-row');
+            const input = row.querySelector('.qty-input');
+            const currentVal = parseInt(input.value) || 1;
+            const maxVal = parseInt(btn.getAttribute('max')) || 999;
+
+            if (currentVal >= maxVal) {
+                showToast(`Maximum available stock is ${maxVal}.`, 'warning');
+                return;
+            }
+
+            const newVal = currentVal + 1;
+            input.value = newVal;
+            await updateCartQuantity(id, newVal);
+        });
+    });
+
+    document.querySelectorAll('.btn-qty-dec').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const row = btn.closest('.cart-item-row');
+            const input = row.querySelector('.qty-input');
+            const currentVal = parseInt(input.value) || 1;
+
+            if (currentVal <= 1) {
+                if (confirm('Do you want to remove this item from your cart?')) {
+                    await removeCartItem(id);
+                }
+                return;
+            }
+
+            const newVal = currentVal - 1;
+            input.value = newVal;
+            await updateCartQuantity(id, newVal);
+        });
+    });
+
+    // 2. Direct Quantity Input Change
+    document.querySelectorAll('.qty-input').forEach(input => {
+        input.addEventListener('change', async () => {
+            const id = input.getAttribute('data-id');
+            const val = parseInt(input.value) || 1;
+            const maxVal = parseInt(input.getAttribute('max')) || 999;
+
+            if (val <= 0) {
+                if (confirm('Remove item from cart?')) {
+                    await removeCartItem(id);
+                } else {
+                    input.value = 1;
+                }
+                return;
+            }
+
+            if (val > maxVal) {
+                showToast(`Only ${maxVal} units available in stock.`, 'warning');
+                input.value = maxVal;
+                await updateCartQuantity(id, maxVal);
+                return;
+            }
+
+            await updateCartQuantity(id, val);
+        });
+    });
+
+    // 3. Remove Item
+    document.querySelectorAll('.btn-remove-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            await removeCartItem(id);
+        });
+    });
+
+    // 4. Clear Cart
+    const btnClearCart = document.getElementById('btn-clear-cart');
+    if (btnClearCart) {
+        btnClearCart.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to empty your shopping cart?')) return;
+            const res = await ApiService.request('/api/cart', { method: 'DELETE' });
+            if (res.success) {
+                showToast('Your shopping bag has been cleared.', 'info');
+                setTimeout(() => window.location.reload(), 300);
+            }
+        });
+    }
+
+    // 5. Apply Promo Code
+    const btnApplyCoupon = document.getElementById('btn-page-apply-coupon');
+    const couponInput = document.getElementById('page-coupon-input');
+    const couponFeedback = document.getElementById('page-coupon-feedback');
+
+    if (btnApplyCoupon && couponInput) {
+        btnApplyCoupon.addEventListener('click', async () => {
+            const code = couponInput.value.trim();
+            if (!code) {
+                showToast('Please enter a coupon code.', 'warning');
+                return;
+            }
+
+            const res = await ApiService.post('/api/cart/coupon', { coupon_code: code });
+            if (res.success) {
+                showToast(res.data.message || 'Coupon applied!', 'success');
+                setTimeout(() => window.location.reload(), 400);
+            } else {
+                showToast(res.error || 'Invalid coupon code.', 'error');
+                if (couponFeedback) {
+                    couponFeedback.classList.remove('hidden');
+                    couponFeedback.innerHTML = `<span class="text-danger">⚠️ ${res.error || 'Invalid promo code.'}</span>`;
+                }
+            }
+        });
+    }
+
+    // 6. Checkout CTA
+    const btnCheckout = document.getElementById('btn-cart-checkout');
+    if (btnCheckout) {
+        btnCheckout.addEventListener('click', () => {
+            openGeneralModal(
+                'Checkout Simulation',
+                `<p>Your order is ready to be processed!</p>
+                 <p style="margin-top: 0.75rem; color: #4f46e5; font-weight: 600;">
+                    Complete Payment Gateway &amp; Order Placement will be implemented in <strong>Module 7</strong>.
+                 </p>`
+            );
+        });
+    }
+
+    async function updateCartQuantity(productId, quantity) {
+        const res = await ApiService.request(`/api/cart/items/${productId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ quantity })
+        });
+        if (res.success) {
+            showToast('Quantity updated.', 'success');
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            showToast(res.error || 'Could not update quantity.', 'error');
+        }
+    }
+
+    async function removeCartItem(productId) {
+        const res = await ApiService.request(`/api/cart/items/${productId}`, {
+            method: 'DELETE'
+        });
+        if (res.success) {
+            showToast('Item removed from cart.', 'info');
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            showToast(res.error || 'Could not remove item.', 'error');
+        }
+    }
+});
+</script>
+{% endblock %}

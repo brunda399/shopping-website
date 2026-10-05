@@ -63,6 +63,17 @@ def product_detail(product_id: int):
     )
 
 
+@main_bp.route("/cart", methods=["GET"])
+def cart_page():
+    """Customer shopping cart page."""
+    from flask import session
+    from services.cart_service import CartService
+    user_id = session.get("user_id")
+    coupon_code = session.get("applied_coupon", "")
+    summary = CartService.get_cart_summary(user_id=user_id, coupon_code=coupon_code)
+    return render_template("cart/index.html", cart=summary, cart_items=summary["items"])
+
+
 @main_bp.route("/register", methods=["GET", "POST"])
 def register():
     """Render and handle customer account registration."""

@@ -98,6 +98,8 @@ projects/
 │   ├── products/              # Customer product discovery templates (Module 4)
 │   │   ├── index.html         # Product catalog page with multi-filter sidebar & grid
 │   │   └── detail.html        # Product detail showcase & related recommendations
+│   ├── cart/                  # Shopping cart templates (Module 5)
+│   │   └── index.html         # Customer shopping cart & checkout review page
 │   └── errors/                # User-friendly error pages
 │       ├── 404.html           # 404 Not Found template
 │       └── 500.html           # 500 Internal Server Error template
@@ -291,19 +293,52 @@ Module 4 provides a customer-facing product discovery experience backed dynamica
   - High-resolution media showcase and verified stock availability indicators.
   - Detailed product specifications and customer rating score.
   - "You May Also Like" recommendation engine fetching contextual related products from `GET /api/products/<id>/related`.
-- **Cart Preparation**: Product cards link to "View Details" (Add to Cart reserved for Module 5).
+- **Cart Integration**: Product cards support quick "Add to Cart" and detail page includes quantity selection and inventory checking.
 
 ---
 
-## 9. Development Roadmap (Modules 0 – 12)
+## 9. Shopping Cart System (Module 5)
+
+Module 5 provides a synchronized shopping cart experience with inventory validation, guest persistence, promo discounts, and dynamic UI:
+
+### Key Features:
+- **Dedicated Shopping Cart Page (`/cart`)**: Complete order review with item line details, stock availability indicators, live unit/subtotal calculations, free shipping progress bar, and order summary breakdown.
+- **Synchronized Slide-Out Cart Drawer**: Globally accessible from the navigation bar with item badges, quantity adjustments, item removal, and promotional code entry.
+- **Inventory & Stock Guard**:
+  - Quantity adjustments strictly enforce `Product.stock` limits.
+  - Prevents purchasing out-of-stock or deactivated items.
+  - Returns clear, friendly error messages when requested quantities exceed available stock.
+- **Dynamic Price & Shipping Calculation Engine**:
+  - Subtotal automatically recalculates on quantity increments/decrements.
+  - Free Express Shipping tracker with animated progress bar for orders $\ge \$50.00$ ($5.00 flat rate otherwise).
+- **Promotional Coupon Engine**:
+  - Validates and applies promo codes (`EASE50` for 50% off up to $50 max, `SAVE10` for 10% off, `WELCOME15` for 15% off).
+  - Immediate feedback with clear success badges and validation alerts.
+- **Guest-to-Authenticated Cart Synchronization**:
+  - Guest items stored securely in client `localStorage`.
+  - Automatically merges guest items into the database cart upon user authentication (`POST /api/cart/sync`).
+- **RESTful Cart API Endpoints**:
+  - `GET /api/cart` — Retrieve cart summary, line items, shipping status, and coupon discounts
+  - `POST /api/cart/items` — Add product to cart with quantity validation
+  - `PUT /api/cart/items/<id>` — Update item quantity (0 removes item)
+  - `DELETE /api/cart/items/<id>` — Remove item from cart
+  - `DELETE /api/cart` — Clear all items from cart
+  - `POST /api/cart/coupon` — Apply promotional coupon code
+  - `DELETE /api/cart/coupon` — Remove active coupon code
+  - `POST /api/cart/sync` — Synchronize guest cart into authenticated account
+  - `GET /api/cart/status` — Health check endpoint for cart subsystem
+
+---
+
+## 10. Development Roadmap (Modules 0 – 12)
 
 - **[x] MODULE 0: Project Foundation & Architecture**
 - **[x] MODULE 1: UI Foundation & Home Page**
 - **[x] MODULE 2: Authentication (Register, Login, Logout, Sessions)**
 - **[x] MODULE 3: Product Management (Admin CRUD & Categories)**
-- **[x] MODULE 4: Product Browsing, Search & Filtering** *(Completed)*
-- **[ ] MODULE 5: Shopping Cart** *(Next)*
-- **[ ] MODULE 6: Wishlist**
+- **[x] MODULE 4: Product Browsing, Search & Filtering**
+- **[x] MODULE 5: Shopping Cart System** *(Completed)*
+- **[ ] MODULE 6: Wishlist** *(Next)*
 - **[ ] MODULE 7: Checkout & Order Management**
 - **[ ] MODULE 8: User Profile & Order History**
 - **[ ] MODULE 9: Admin Dashboard (Analytics & Fulfillment)**

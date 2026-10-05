@@ -64,6 +64,21 @@ const ApiService = {
             body: JSON.stringify(body),
             headers
         });
+    },
+
+    put(endpoint, body = {}, headers = {}) {
+        return this.request(endpoint, {
+            method: 'PUT',
+            body: JSON.stringify(body),
+            headers
+        });
+    },
+
+    delete(endpoint, headers = {}) {
+        return this.request(endpoint, {
+            method: 'DELETE',
+            headers
+        });
     }
 };
 
@@ -112,39 +127,118 @@ const AppState = {
         this.renderWishlist();
     },
 
-    addToCart(product) {
-        const existing = this.cart.find(item => item.id == product.id);
-        if (existing) {
-            existing.quantity += 1;
-        } else {
-            this.cart.push({
-                id: product.id,
-                name: product.name,
-                price: parseFloat(product.price),
-                image: product.image || '📦',
-                category: product.category || 'General',
-                quantity: 1
-            });
+    async init() {
+        const isAuth = document.body && document.body.dataset.authenticated === 'true';
+        if (isAuth) {
+            if (this.cart.length > 0) {
+                try {
+                    const syncRes = await ApiService.post('/api/cart/sync', { items: this.cart });
+                    if (syncRes.success && syncRes.data && syncRes.data.data) {
+                        const s = syncRes.data.data;
+                        this.cart = (s.items || []).map(i => ({
+                            id: i.product.id,
+                            name: i.product.name,
+                            price: parseFloat(i.product.price),
+                            image: i.product.image || '📦',
+                            category: i.product.category_name || 'General',
+                            quantity: i.quantity
+                        }));
+                        if (s.coupon) {
+                            this.discountPercent = s.coupon.discount_percent;
+                            this.appliedCoupon = s.coupon.code;
+                        }
+                        this.saveCart();
+                    }
+                } catch (e) {
+                    console.error('Cart sync error:', e);
+                }
+            } else {
+                try {
+                    const cartRes = await ApiService.get('/api/cart');
+                    if (cartRes.success && cartRes.data && cartRes.data.data) {
+                        const s = cartRes.data.data;
+                        this.cart = (s.items || []).map(i => ({
+                            id: i.product.id,
+                            name: i.product.name,
+                            price: parseFloat(i.product.price),
+                            image: i.product.image || '📦',
+                            category: i.product.category_name || 'General',
+                            quantity: i.quantity
+                        }));
+                        if (s.coupon) {
+                            this.discountPercent = s.coupon.discount_percent;
+                            this.appliedCoupon = s.coupon.code;
+                        }
+                        this.saveCart();
+                    }
+                } catch (e) {
+                    console.error('Cart fetch error:', e);
+                }
+            }
         }
-        this.saveCart();
-        showToast(`Added "${product.name}" to shopping bag!`, 'success');
-        openCartDrawer();
+        this.renderCart();
+        this.renderWishlist();
     },
 
-    updateCartQuantity(productId, delta) {
+    async addToCart(product) {
+        const qtyToAdd = product.quantity && product.quantity > 0 ? parseInt(product.quantity) : 1;
+        const productId = parseInt(product.id || product.product_id);
+
+        const res = await ApiService.post('/api/cart/items', {
+            product_id: productId,
+            quantity: qtyToAdd
+        });
+
+        if (res.success) {
+            const existing = this.cart.find(item => item.id == productId);
+            if (existing) {
+                existing.quantity += qtyToAdd;
+            } else {
+                this.cart.push({
+                    id: productId,
+                    name: product.name,
+                    price: parseFloat(product.price),
+                    image: product.image || '📦',
+                    category: product.category || 'General',
+                    quantity: qtyToAdd
+                });
+            }
+            this.saveCart();
+            showToast(`Added "${product.name}" to shopping bag!`, 'success');
+            openCartDrawer();
+            return true;
+        } else {
+            showToast(res.error || `Could not add "${product.name}" to cart.`, 'error');
+            return false;
+        }
+    },
+
+    async updateCartQuantity(productId, delta) {
         const item = this.cart.find(i => i.id == productId);
         if (!item) return;
 
-        item.quantity += delta;
-        if (item.quantity <= 0) {
-            this.removeFromCart(productId);
+        const newQty = item.quantity + delta;
+        if (newQty <= 0) {
+            await this.removeFromCart(productId);
             return;
         }
-        this.saveCart();
+
+        const res = await ApiService.put(`/api/cart/items/${productId}`, {
+            quantity: newQty
+        });
+
+        if (res.success) {
+            item.quantity = newQty;
+            this.saveCart();
+        } else {
+            showToast(res.error || 'Could not update quantity.', 'error');
+        }
     },
 
-    removeFromCart(productId) {
+    async removeFromCart(productId) {
         const item = this.cart.find(i => i.id == productId);
+        await ApiService.delete(`/api/cart/items/${productId}`);
+
         this.cart = this.cart.filter(i => i.id != productId);
         this.saveCart();
         if (item) {
@@ -185,7 +279,7 @@ const AppState = {
         // Calculate discounts & shipping
         const discountAmount = subtotal * (this.discountPercent / 100);
         const finalSubtotal = subtotal - discountAmount;
-        const shipping = (finalSubtotal > 49 || finalSubtotal === 0) ? 0 : 5.99;
+        const shipping = (finalSubtotal >= 50 || finalSubtotal === 0) ? 0 : 5.00;
         const total = finalSubtotal > 0 ? (finalSubtotal + shipping) : 0;
 
         if (cartTotalPreview) {
@@ -365,9 +459,8 @@ function closeGeneralModal() {
 // 5. DOM Initialization & Event Listeners
 // -----------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    // 5.1 Initialize State
-    AppState.renderCart();
-    AppState.renderWishlist();
+    // 5.1 Initialize State & Sync
+    AppState.init();
 
     // 5.2 Navigation & Drawer Listeners
     const navCartBtn = document.getElementById('nav-cart-btn');
@@ -383,8 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cartEmptyExplore) {
         cartEmptyExplore.addEventListener('click', () => {
             closeCartDrawer();
-            const prodSection = document.getElementById('products-section');
-            if (prodSection) prodSection.scrollIntoView({ behavior: 'smooth' });
+            window.location.href = '/products';
         });
     }
 
@@ -419,21 +511,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5.3 Checkout Placeholder
+    // 5.3 Checkout Navigation
     const checkoutBtn = document.getElementById('cart-checkout-btn');
     if (checkoutBtn) {
-        checkoutBtn.addEventListener('click', () => {
+        checkoutBtn.addEventListener('click', (e) => {
             if (AppState.cart.length === 0) {
-                showToast('Your shopping bag is empty!', 'warning');
+                e.preventDefault();
+                showToast('Your shopping bag is empty! Add products first.', 'warning');
                 return;
             }
-            openGeneralModal(
-                'Checkout & Order Placement',
-                `<p>Your shopping cart with <strong>${AppState.cart.length} item(s)</strong> is ready.</p>
-                 <p style="margin-top: 0.5rem; color: #4f46e5; font-weight: 600;">
-                    Full Order Checkout, Addresses, and Payment Processing will be unlocked in <strong>Module 7</strong>.
-                 </p>`
-            );
         });
     }
 
@@ -443,37 +529,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const couponFeedback = document.getElementById('coupon-feedback');
 
     if (applyCouponBtn && couponInput) {
-        applyCouponBtn.addEventListener('click', () => {
+        applyCouponBtn.addEventListener('click', async () => {
             const code = couponInput.value.trim().toUpperCase();
-            if (code === 'EASE50') {
-                AppState.discountPercent = 50;
-                AppState.appliedCoupon = 'EASE50';
+            if (!code) {
+                showToast('Please enter a promo code.', 'warning');
+                return;
+            }
+            const currentSubtotal = AppState.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+            const res = await ApiService.post('/api/cart/coupon', {
+                coupon_code: code,
+                subtotal: currentSubtotal
+            });
+
+            if (res.success && res.data && res.data.data) {
+                const couponData = res.data.data;
+                AppState.discountPercent = couponData.discount_percent;
+                AppState.appliedCoupon = couponData.code;
                 AppState.renderCart();
                 if (couponFeedback) {
                     couponFeedback.className = 'coupon-feedback text-success';
-                    couponFeedback.textContent = '🎉 50% discount coupon applied successfully!';
+                    couponFeedback.textContent = `🎉 ${couponData.description}`;
                     couponFeedback.classList.remove('hidden');
                 }
-                showToast('50% Promo code applied!', 'success');
-            } else if (code === '') {
-                showToast('Please enter a promo code.', 'warning');
+                showToast(`Promo code "${code}" applied!`, 'success');
             } else {
                 AppState.discountPercent = 0;
                 AppState.appliedCoupon = '';
                 AppState.renderCart();
                 if (couponFeedback) {
                     couponFeedback.className = 'coupon-feedback text-danger';
-                    couponFeedback.textContent = 'Invalid promo code. Try "EASE50" for 50% off!';
+                    couponFeedback.textContent = res.error || 'Invalid promo code.';
                     couponFeedback.classList.remove('hidden');
                 }
-                showToast('Invalid promo code.', 'error');
+                showToast(res.error || 'Invalid promo code.', 'error');
             }
         });
     }
 
     // 5.5 Add-to-cart Buttons
     function bindAddToCartButtons() {
-        document.querySelectorAll('.add-to-cart-btn, .hero-quick-add').forEach(btn => {
+        document.querySelectorAll('.add-to-cart-btn, .hero-quick-add, .btn-card-add-cart').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const id = btn.getAttribute('data-id');
