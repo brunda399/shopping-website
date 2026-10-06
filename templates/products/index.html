@@ -358,18 +358,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <div class="product-card-footer">
                             <div class="price-stock-box">
-                                <span class="product-price">$${Number(product.price).toFixed(2)}</span>
+                                <span class="product-price">₹${Number(product.sale_price || product.salePrice || product.price).toFixed(2)}</span>
+                                ${product.sale_price && product.price > product.sale_price ? `<del class="card-strike-price" style="font-size:0.8rem;color:#94a3b8;margin-left:4px;">₹${Number(product.price).toFixed(2)}</del>` : ''}
                                 ${stockBadge}
                             </div>
 
                             <div class="product-card-actions">
-                                <button type="button" class="btn btn-primary btn-sm btn-card-add-cart" data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-image="${product.image}" data-category="${product.category_name || 'General'}" ${isOut ? 'disabled' : ''} aria-label="Add ${product.name} to shopping bag">
-                                    <span>🛒</span> Add
+                                <button type="button" class="btn btn-primary btn-sm btn-card-add-cart" data-id="${product.id}" data-name="${product.name}" data-price="${product.sale_price || product.salePrice || product.price}" data-image="${product.image}" data-category="${product.category_name || product.category || 'General'}" ${isOut ? 'disabled' : ''} aria-label="Add ${product.name} to shopping bag">
+                                    <span>🛒</span> Add to Cart
                                 </button>
-                                <a href="/products/${product.id}" class="btn btn-outline btn-sm btn-view-details" aria-label="View details for ${product.name}">
-                                    <span>View Details</span>
-                                    <span class="btn-arrow">→</span>
-                                </a>
+                                <form action="/buy-now" method="POST" class="card-buy-now-form">
+                                    <input type="hidden" name="product_id" value="${product.id}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <input type="hidden" name="size" value="${(product.sizes && product.sizes[0]) || ''}">
+                                    <input type="hidden" name="color" value="${(product.colors && product.colors[0]) || ''}">
+                                    <button type="submit" class="btn btn-warning btn-sm btn-card-buy-now" ${isOut ? 'disabled' : ''} aria-label="Buy ${product.name} now">
+                                        <span>⚡</span> Buy Now
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
