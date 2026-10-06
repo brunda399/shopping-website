@@ -188,27 +188,31 @@
                             </div>
                         </div>
 
-                        <!-- Add to Cart CTA -->
-                        <button type="button" class="btn btn-primary btn-lg detail-add-cart-btn" id="btn-detail-add-cart" 
-                                data-id="{{ product.id }}" 
-                                data-name="{{ product.name }}" 
-                                data-price="{{ product.effective_price }}" 
-                                data-image="{{ product.image }}" 
-                                data-category="{{ product.category_name or 'General' }}" 
-                                data-stock="{{ product.stock }}">
-                            <span>🛒</span> Add to Cart
-                        </button>
-
-                        <!-- Buy Now CTA -->
-                        <form action="{{ url_for('main.buy_now') }}" method="POST" id="form-buy-now" class="buy-now-form">
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="quantity" id="buy-now-qty" value="1">
-                            <input type="hidden" name="size" id="buy-now-size" value="{{ product.sizes[0] if product.sizes else '' }}">
-                            <input type="hidden" name="color" id="buy-now-color" value="{{ product.colors[0] if product.colors else '' }}">
-                            <button type="submit" class="btn btn-warning btn-lg btn-buy-now" id="btn-detail-buy-now">
-                                <span>⚡</span> Buy Now
+                        <div class="detail-cta-buttons-wrap">
+                            <!-- Add to Cart CTA -->
+                            <button type="button" class="btn btn-primary btn-lg detail-add-cart-btn" id="btn-detail-add-cart" 
+                                    data-id="{{ product.id }}" 
+                                    data-name="{{ product.name }}" 
+                                    data-price="{{ product.effective_price }}" 
+                                    data-image="{{ product.image }}" 
+                                    data-category="{{ product.category_name or 'General' }}" 
+                                    data-stock="{{ product.stock }}">
+                                <span class="btn-cta-icon">🛒</span>
+                                <span class="btn-cta-text">Add to Cart</span>
                             </button>
-                        </form>
+
+                            <!-- Buy Now CTA -->
+                            <form action="{{ url_for('main.buy_now') }}" method="POST" id="form-buy-now" class="buy-now-form">
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="quantity" id="buy-now-qty" value="1">
+                                <input type="hidden" name="size" id="buy-now-size" value="{{ product.sizes[0] if product.sizes else '' }}">
+                                <input type="hidden" name="color" id="buy-now-color" value="{{ product.colors[0] if product.colors else '' }}">
+                                <button type="submit" class="btn btn-warning btn-lg btn-buy-now" id="btn-detail-buy-now">
+                                    <span class="btn-cta-icon">⚡</span>
+                                    <span class="btn-cta-text">Buy Now</span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     {% else %}
                     <button type="button" class="btn btn-secondary btn-lg" disabled>

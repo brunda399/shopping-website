@@ -251,8 +251,8 @@ def checkout_page():
         qty = int(buy_now_item.get("quantity", 1))
         unit_p = prod["sale_price"] or prod["price"]
         item_subtotal = round(unit_p * qty, 2)
-        shipping = 0.0 if item_subtotal >= 999.0 else 50.0
-        tax = round(item_subtotal * 0.05, 2)
+        shipping = 0.0 if item_subtotal >= 50.0 else 5.0
+        tax = 0.0
         total = round(item_subtotal + shipping + tax, 2)
 
         order_summary = {
