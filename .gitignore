@@ -1,5 +1,11 @@
+# Environment & Secrets
+.env
+.env.*
+.env.local
+
 # Python bytecode and cache
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.so
@@ -7,14 +13,13 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Environments
+# Virtual Environments
 venv/
 .venv/
 env/
-.env.local
 
-# Sensitive environment configuration
-.env
+# Dependencies
+node_modules/
 
 # SQLite Instance & Database files
 instance/
